@@ -1,7 +1,6 @@
 {
   "ios": {
-    "CFBundleDisplayName": "1 Yıl",
-    "NSUserTrackingUsageDescription": "Daha alakalı reklamlar görmek için izin ver. Vermesen de uygulama aynı çalışır."
+    "CFBundleDisplayName": "1 Yıl"
   },
   "android": {
     "app_name": "1 Yıl"

@@ -74,7 +74,7 @@ Metinler `src/i18n/` altında: `tr.ts` asıl kaynak, `en`, `ja`, `es`, `de` ayn�
 
 ## Reklam ve Pro
 
-- **Reklam:** Google AdMob (`react-native-google-mobile-ads`). Liste sonlarında küçük banner. Avrupa için Google onay formu, iPhone'da izleme izni sorulur. Gerçek kimlikler girilene kadar Google'ın test reklamları görünür: uygulama kimlikleri `app.json`, reklam birimleri `src/lib/config.ts`.
+- **Reklam:** İlk mağaza sürümünde yok. AdMob ve izleme izni paketleri, Apple'ın "takip" beyanı istememesi için çıkarıldı. Hazır entegrasyon (banner, Avrupa onay formu, iPhone izleme izni) commit `c6f7986`'da: `src/lib/ads.ts`, `src/components/ad-banner.tsx`, `react-native-google-mobile-ads` + `expo-tracking-transparency` paketleri ve `app.json` eklentileri geri eklenir, `MONETIZATION` açılır, App Privacy formu güncellenir.
 - **Pro:** Tek seferlik satın alma, RevenueCat (`react-native-purchases`) ile. Reklamları kaldırır, özel hareket ve ekstra kart temalarını açar. Anahtar `src/lib/config.ts` → `REVENUECAT_KEY`; RevenueCat'te yetki adı `pro`.
 
 ## İnternetsiz kullanım

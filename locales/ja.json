@@ -1,7 +1,6 @@
 {
   "ios": {
-    "CFBundleDisplayName": "1年",
-    "NSUserTrackingUsageDescription": "関連性の高い広告を表示するために許可してください。許可しなくてもアプリは同じように使えます。"
+    "CFBundleDisplayName": "1年"
   },
   "android": {
     "app_name": "1年"

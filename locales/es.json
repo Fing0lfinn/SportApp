@@ -1,7 +1,6 @@
 {
   "ios": {
-    "CFBundleDisplayName": "1 Año",
-    "NSUserTrackingUsageDescription": "Permite el seguimiento para ver anuncios más relevantes. La app funciona igual en ambos casos."
+    "CFBundleDisplayName": "1 Año"
   },
   "android": {
     "app_name": "1 Año"

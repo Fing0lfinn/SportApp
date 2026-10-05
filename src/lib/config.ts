@@ -1,7 +1,8 @@
 // Mağaza ve reklam anahtarları. Boş bırakılanlar için uygulama güvenli varsayılana döner:
 //   * AdMob reklam birimi boşsa Google'ın test reklamları gösterilir (gelir gelmez).
 //   * RevenueCat anahtarı boşsa Pro satın alma "yakında" olarak görünür.
-// AdMob uygulama kimlikleri (ca-app-pub-…~…) app.json → react-native-google-mobile-ads içinde.
+// AdMob paketleri ilk mağaza sürümünde kaldırıldı; geri eklerken uygulama kimlikleri (ca-app-pub-…~…)
+// app.json → react-native-google-mobile-ads eklentisine yazılır (bkz. src/lib/ads.ts).
 
 /**
  * Reklam ve Pro açık mı? İlk mağaza sürümü ücretsiz ve reklamsız çıkıyor:
