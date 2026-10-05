@@ -6,15 +6,19 @@ import Svg, { Path, Polygon } from 'react-native-svg';
 
 import { Avatar, Bar, Btn, Field, Stepper, Txt } from '@/components/ui';
 import { AVATAR_COLORS, C } from '@/constants/theme';
+import { useAuth } from '@/lib/auth';
 import { EXERCISES, fmt, progressOf, todayISO } from '@/lib/challenge';
 import { useAddEntries, useCreateGroup, useJoinGroup, useMyEntries, useUpdateProfile } from '@/lib/data';
+import { providerName } from '@/lib/social-auth';
 
 const DEFAULT_START = [60, 80, 50, 30, 15, 3, 8, 20, 50];
 
 export default function Onboarding() {
   const insets = useSafeAreaInsets();
+  const { session } = useAuth();
   const [step, setStep] = useState(0);
-  const [name, setName] = useState('');
+  // Apple/Google ile girildiyse ad hazır gelir, istenirse değiştirilir.
+  const [name, setName] = useState(() => providerName(session?.user.user_metadata));
   const [color, setColor] = useState<string>(AVATAR_COLORS[0]);
   const [bw, setBw] = useState(80);
   const [start, setStart] = useState(DEFAULT_START);

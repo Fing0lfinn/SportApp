@@ -24,6 +24,8 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_KEY, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // Google girişi tarayıcıdan ?code= ile döner, kod telefonda oturuma çevrilir.
+    flowType: 'pkce',
   },
 });
 

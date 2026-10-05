@@ -52,6 +52,12 @@ Proje bağlantısı `src/lib/supabase.ts` içinde. Publishable anahtar uygulamay
 - RPC: `create_group`, `join_group`, `regenerate_invite_code`, `register_push_token`
 - `entries_push_notify` tetikleyicisi: rekor kaydında gruptakilere Expo push gönderir ("seni geçti", "hedefini tamamladı", "rekor kırdı"; her biri `profiles.notify` ile kapatılabilir)
 
+**Apple ve Google ile giriş:**
+
+- Authentication → Sign In / Providers → **Apple**: aç, *Client IDs* alanına `com.fing0lfinn.sportapp` yaz (Expo Go'da denemek için virgülle `host.exp.Exponent` da ekle). Uygulama içinden giriş yapıldığı için gizli anahtar gerekmez.
+- **Google**: Google Cloud Console'da *Web application* türünde OAuth istemcisi oluştur, yetkili yönlendirme adresine `https://zjarkghlkoflhijlpleo.supabase.co/auth/v1/callback` yaz. Çıkan *Client ID* ve *Client Secret*'ı Supabase'deki Google sağlayıcısına gir.
+- Authentication → URL Configuration → *Redirect URLs*: `sportapp://**` (Expo Go için `exp://**`) ekle.
+
 Herkes sadece kendi grubundaki kişilerin profil ve kayıtlarını görebilir, sadece kendi kayıtlarını değiştirebilir.
 
 **Dashboard ayarı:** Authentication → Sign In / Providers → Email → **Confirm email** kapalı olmalı. Açıksa her kayıtta onay e-postası gider ve Supabase'in ücretsiz e-posta limiti (saatte birkaç e-posta) arkadaşların kaydını engeller.
