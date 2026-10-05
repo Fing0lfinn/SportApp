@@ -5,6 +5,7 @@ import Animated, { FadeIn, FadeInDown, LinearTransition } from 'react-native-rea
 
 import { C } from '@/constants/theme';
 import { getLang, useStrings } from '@/i18n';
+import { MONETIZATION } from '@/lib/config';
 import { CATALOG, catalogName, customKey, defaultStep, type CatalogCategory, type ExerciseType } from '@/lib/catalog';
 import {
   catalogRow,
@@ -203,7 +204,10 @@ function AddExercise({
         <IconBtn name="close" label={t.common.close} size={36} bg={C.surface3} onPress={onClose} />
       </View>
       <Chips
-        items={[...CATS.map((c) => ({ key: c, label: e.cats[c] })), { key: 'custom' as const, label: e.customTab }]}
+        items={[
+          ...CATS.map((c) => ({ key: c as CatalogCategory | 'custom', label: e.cats[c] })),
+          ...(MONETIZATION || canCustom ? [{ key: 'custom' as const, label: e.customTab }] : []),
+        ]}
         value={cat}
         onChange={setCat}
       />

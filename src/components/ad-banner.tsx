@@ -6,7 +6,7 @@ import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads'
 import { C } from '@/constants/theme';
 import { useStrings } from '@/i18n';
 import { useAdsReady } from '@/lib/ads';
-import { ADMOB_BANNER } from '@/lib/config';
+import { ADMOB_BANNER, MONETIZATION } from '@/lib/config';
 import { usePro } from '@/lib/pro';
 
 import { Txt } from './ui';
@@ -17,7 +17,7 @@ export function AdBanner() {
   const ready = useAdsReady();
   const pro = usePro();
   const [failed, setFailed] = useState(false);
-  if (!ready || pro.isPro || failed) return null;
+  if (!MONETIZATION || !ready || pro.isPro || failed) return null;
   const real = Platform.OS === 'ios' ? ADMOB_BANNER.ios : ADMOB_BANNER.android;
   const unitId = __DEV__ || !real ? TestIds.ADAPTIVE_BANNER : real;
   return (

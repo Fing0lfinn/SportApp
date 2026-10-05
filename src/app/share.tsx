@@ -9,6 +9,7 @@ import { C } from '@/constants/theme';
 import { useStrings } from '@/i18n';
 import { exStats, fmtShort, fmtValue, todayIndex, unitOf } from '@/lib/challenge';
 import { useActiveGroup, useMyStats, useProfile } from '@/lib/data';
+import { MONETIZATION } from '@/lib/config';
 import { usePro } from '@/lib/pro';
 
 /** Rekor / hedef kartı: tema seç, telefonun paylaş menüsüyle gönder. */
@@ -57,7 +58,7 @@ export default function Share() {
       </Animated.View>
       <View style={{ alignSelf: 'stretch' }}>
         <Chips
-          items={SHARE_THEMES.map((x) => ({
+          items={SHARE_THEMES.filter((x) => MONETIZATION || !x.pro).map((x) => ({
             key: x.key,
             label: `${t.share.themes[x.key]}${x.pro && !pro.isPro ? ' · Pro' : ''}`,
           }))}

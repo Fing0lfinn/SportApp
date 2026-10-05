@@ -14,6 +14,7 @@ import { computeBadges } from '@/lib/badges';
 import { endISO, exStats, fmt, fmtShort, formatDate, strengthRatio, unitOf, XP } from '@/lib/challenge';
 import { useActiveGroup, useGroupBoard, useMyStats, useProfile, useUpdateProfile } from '@/lib/data';
 import { forgetPushToken } from '@/lib/notifications';
+import { MONETIZATION } from '@/lib/config';
 import { usePro } from '@/lib/pro';
 import { supabase } from '@/lib/supabase';
 
@@ -153,12 +154,14 @@ export default function Profile() {
         <Txt size={20} weight="extrabold">
           {t.profile.tools}
         </Txt>
-        <MenuRow
-          icon="star"
-          title={pro.isPro ? t.profile.proActive : t.profile.pro}
-          sub={pro.isPro ? t.profile.proActiveSub : t.profile.proSub}
-          onPress={() => router.push('/pro')}
-        />
+        {MONETIZATION ? (
+          <MenuRow
+            icon="star"
+            title={pro.isPro ? t.profile.proActive : t.profile.pro}
+            sub={pro.isPro ? t.profile.proActiveSub : t.profile.proSub}
+            onPress={() => router.push('/pro')}
+          />
+        ) : null}
         <MenuRow icon="bolt" title={t.profile.wrapped} sub={t.profile.wrappedSub} onPress={() => router.push('/wrapped')} />
         <MenuRow
           icon="board"

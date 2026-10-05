@@ -21,6 +21,7 @@ import { OfflineBanner } from '@/components/offline-banner';
 import { C } from '@/constants/theme';
 import { useLang, useLangLoaded } from '@/i18n';
 import { initAds } from '@/lib/ads';
+import { MONETIZATION } from '@/lib/config';
 import { AuthProvider, useAuth, useUserId } from '@/lib/auth';
 import { useChallenge, useMyEntries, useProfile, useSyncOutbox, useUpdateProfile } from '@/lib/data';
 import { configureNotifications, registerForPush, syncLocalNotifications } from '@/lib/notifications';
@@ -223,7 +224,7 @@ function useMonetization(signedIn: boolean, onboarded: boolean) {
     setProUser(signedIn ? uid : null);
   }, [signedIn, uid]);
   useEffect(() => {
-    if (Platform.OS === 'web' || !onboarded || !pro.ready || pro.isPro) return;
+    if (!MONETIZATION || Platform.OS === 'web' || !onboarded || !pro.ready || pro.isPro) return;
     initAds();
   }, [onboarded, pro.ready, pro.isPro]);
 }

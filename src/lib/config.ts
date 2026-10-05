@@ -3,6 +3,12 @@
 //   * RevenueCat anahtarı boşsa Pro satın alma "yakında" olarak görünür.
 // AdMob uygulama kimlikleri (ca-app-pub-…~…) app.json → react-native-google-mobile-ads içinde.
 
+/**
+ * Reklam ve Pro açık mı? İlk mağaza sürümü ücretsiz ve reklamsız çıkıyor:
+ * kapalıyken reklam gösterilmez, Pro menüsü, Pro temaları ve özel hareket sekmesi gizlenir.
+ */
+export const MONETIZATION = false;
+
 export const ADMOB_BANNER = {
   ios: '',
   android: '',
