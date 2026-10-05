@@ -16,6 +16,11 @@ const PATHS = {
   share: 'M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5',
   copy: 'M8 8h12v12H8zM16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3',
   logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11',
+  book: 'M4 19V5a2 2 0 0 1 2-2h14v14H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 0 2 2h14',
+  bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0',
+  calendar: 'M3 5h18v16H3zM3 10h18M8 3v4M16 3v4',
+  settings: 'M4 7h10M18 7h2M4 17h4M12 17h8M14 4v6M8 14v6',
+  scale: 'M4 12h16M7 8v8M17 8v8M2 10v4M22 10v4',
 } as const;
 
 export type IconName = keyof typeof PATHS;

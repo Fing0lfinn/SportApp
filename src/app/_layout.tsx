@@ -6,7 +6,8 @@ import { Figtree_800ExtraBold } from '@expo-google-fonts/figtree/800ExtraBold';
 import { Figtree_900Black } from '@expo-google-fonts/figtree/900Black';
 import { focusManager, QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
-import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { DarkTheme, router, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -14,10 +15,12 @@ import { AppState, Platform } from 'react-native';
 
 import { C } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/lib/auth';
-import { useProfile } from '@/lib/data';
+import { useMyEntries, useProfile } from '@/lib/data';
+import { configureNotifications, registerForPush, syncLocalNotifications } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 
 SplashScreen.preventAutoHideAsync();
+configureNotifications();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -75,6 +78,7 @@ function RootStack({ fontsLoaded }: { fontsLoaded: boolean }) {
   }, [ready]);
 
   useLiveUpdates(signedIn);
+  useNotificationSetup(signedIn && onboarded);
 
   if (!ready) return null;
 
@@ -98,6 +102,13 @@ function RootStack({ fontsLoaded }: { fontsLoaded: boolean }) {
         <Stack.Screen name="log" options={sheet} />
         <Stack.Screen name="entry/[id]" options={sheet} />
         <Stack.Screen name="groups" options={sheet} />
+        <Stack.Screen name="share" options={sheet} />
+        <Stack.Screen name="plates" options={sheet} />
+        <Stack.Screen name="guide/[key]" options={sheet} />
+        <Stack.Screen name="badge/[id]" options={{ ...sheet, sheetAllowedDetents: [0.6] }} />
+        <Stack.Screen name="month" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="group-admin" />
       </Stack.Protected>
     </Stack>
   );
@@ -126,4 +137,30 @@ function useLiveUpdates(enabled: boolean) {
       supabase.removeChannel(channel);
     };
   }, [enabled, qc]);
+}
+
+/** Giriş yapılınca: push jetonunu kaydet, hatırlatmaları kur, bildirime dokununca ilgili ekrana git. */
+function useNotificationSetup(enabled: boolean) {
+  const entries = useMyEntries();
+  const loaded = entries.isSuccess;
+
+  useEffect(() => {
+    if (!enabled || Platform.OS === 'web') return;
+    registerForPush().catch(() => {});
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled || !loaded || Platform.OS === 'web') return;
+    syncLocalNotifications(entries.data ?? []).catch(() => {});
+  }, [enabled, loaded, entries.data]);
+
+  useEffect(() => {
+    if (!enabled || Platform.OS === 'web') return;
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as { exercise?: string } | undefined;
+      if (data?.exercise) router.push({ pathname: '/exercise/[key]', params: { key: data.exercise } });
+      else router.push('/');
+    });
+    return () => sub.remove();
+  }, [enabled]);
 }

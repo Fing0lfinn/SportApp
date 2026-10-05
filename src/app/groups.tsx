@@ -107,6 +107,19 @@ export default function Groups() {
         </View>
       ) : null}
 
+      {g && active.isAdmin ? (
+        <Btn
+          kind="secondary"
+          height={50}
+          icon="settings"
+          title="Grubu yönet"
+          onPress={() => {
+            router.back();
+            router.push('/group-admin');
+          }}
+        />
+      ) : null}
+
       <View style={{ gap: 10, marginTop: 6 }}>
         <Field
           label="Davet koduyla katıl"

@@ -2,14 +2,16 @@ import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Platform, ScrollView, View } from 'react-native';
-import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
 
+import { Confetti } from '@/components/confetti';
 import { EntryForm, type FormValue } from '@/components/entry-form';
 import { Icon } from '@/components/icon';
 import { Btn, Chips, Pill, Txt } from '@/components/ui';
 import { C } from '@/constants/theme';
 import {
   computeStats,
+  entryText,
   epley,
   EXERCISE_BY_KEY,
   EXERCISES,
@@ -21,6 +23,9 @@ import {
   type UserStats,
 } from '@/lib/challenge';
 import { useAddEntries, useMyStats } from '@/lib/data';
+import { syncLocalNotifications } from '@/lib/notifications';
+
+type Result = EntryEvent & { levelUp: string | null; text: string; nextStop: number | null };
 
 function defaults(stats: UserStats, key: ExerciseKey): FormValue {
   const ex = EXERCISE_BY_KEY[key];
@@ -36,7 +41,7 @@ export default function LogEntry() {
   const add = useAddEntries();
   const [key, setKey] = useState<ExerciseKey>(params.exercise ?? 'squat');
   const [value, setValue] = useState<FormValue>(() => defaults(mine.stats, params.exercise ?? 'squat'));
-  const [result, setResult] = useState<EntryEvent | null>(null);
+  const [result, setResult] = useState<Result | null>(null);
 
   const ex = EXERCISE_BY_KEY[key];
   const best = mine.stats.byExercise[key].best;
@@ -52,34 +57,92 @@ export default function LogEntry() {
   const save = async () => {
     const rows = await add.mutateAsync([{ exercise: key, ...value, performed_on: todayISO() }]);
     const row = rows[0];
-    const ev = computeStats([...(mine.data ?? []), row]).events[row.id] ?? { record: false, milestones: 0, goal: false, xp: 10 };
+    const all = [...(mine.data ?? []), row];
+    const after = computeStats(all);
+    const ev = after.events[row.id] ?? { record: false, milestones: 0, goal: false, xp: 10 };
+    const st = after.byExercise[key];
+    const res: Result = {
+      ...ev,
+      levelUp: after.level > mine.stats.level ? after.levelName : null,
+      text: entryText(ex, value),
+      nextStop: st.milestonesDone < 4 ? st.milestones[st.milestonesDone] : null,
+    };
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(ev.record ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
     }
-    setResult(ev);
-    setTimeout(() => router.back(), ev.record ? 1800 : 1100);
+    syncLocalNotifications(all).catch(() => {});
+    setResult(res);
+    const celebrate = ev.goal || ev.milestones > 0 || res.levelUp;
+    if (!celebrate) setTimeout(() => router.back(), ev.record ? 1500 : 1000);
   };
 
   if (result) {
-    const title = result.goal ? 'HEDEF TAMAM!' : result.milestones ? 'ARA HEDEF!' : result.record ? 'YENİ REKOR!' : 'Kaydedildi';
-    const color = result.goal ? C.gold : C.accent;
+    const celebrate = result.goal || result.milestones > 0 || !!result.levelUp;
+    const kicker = result.goal
+      ? 'HEDEF TAMAM'
+      : result.milestones
+        ? 'ARA HEDEF'
+        : result.levelUp
+          ? 'SEVİYE ATLADIN'
+          : result.record
+            ? 'YENİ REKOR'
+            : 'KAYDEDİLDİ';
+    const color = result.goal || result.levelUp ? C.gold : C.accent;
+    const sub = result.goal
+      ? result.text
+      : result.milestones && result.nextStop
+        ? `Sıradaki durak: ${fmt(result.nextStop)} ${ex.unit}`
+        : result.text;
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24 }}>
+        {celebrate ? <Confetti /> : null}
         <Animated.View
-          entering={ZoomIn.duration(450)}
-          style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="check" size={52} color={C.accentInk} stroke={3} />
+          entering={ZoomIn.springify().damping(12)}
+          style={{ width: 104, height: 104, borderRadius: 52, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name={result.record ? 'bolt' : 'check'} size={54} color={C.accentInk} stroke={2.6} />
         </Animated.View>
         <Animated.View entering={FadeIn.delay(200)}>
-          <Txt size={28} weight="black" color={color} style={{ textAlign: 'center' }}>
-            {title}
+          <Txt size={15} weight="black" color={color} style={{ textAlign: 'center', letterSpacing: 1.5 }}>
+            {kicker}
           </Txt>
         </Animated.View>
-        <Animated.View entering={FadeIn.delay(350)}>
+        <Animated.View entering={FadeInDown.delay(300)}>
+          <Txt size={32} weight="black" style={{ textAlign: 'center', lineHeight: 38 }}>
+            {result.levelUp && !result.goal && !result.milestones ? result.levelUp : ex.name}
+          </Txt>
+        </Animated.View>
+        <Animated.View entering={FadeIn.delay(400)}>
           <Txt size={17} color={C.sub} style={{ textAlign: 'center' }}>
-            {ex.name} · +{result.xp} XP
+            {sub}
           </Txt>
         </Animated.View>
+        <Animated.View entering={FadeIn.delay(500)} style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <Pill bg={C.surface2} fg={C.accent}>
+            +{result.xp} XP
+          </Pill>
+          {result.levelUp && (result.goal || result.milestones) ? (
+            <Pill bg={C.surface2} fg={C.gold}>
+              YENİ SEVİYE: {result.levelUp.toLocaleUpperCase('tr-TR')}
+            </Pill>
+          ) : null}
+        </Animated.View>
+        {celebrate || result.record ? (
+          <Animated.View entering={FadeInDown.delay(650)} style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginTop: 12 }}>
+            <Btn
+              kind="secondary"
+              title="Paylaş"
+              icon="share"
+              style={{ flex: 1 }}
+              onPress={() =>
+                router.replace({
+                  pathname: '/share',
+                  params: { exercise: key, kicker: result.goal ? 'HEDEF TAMAM' : result.milestones ? 'ARA HEDEF' : 'YENİ REKOR' },
+                })
+              }
+            />
+            {celebrate ? <Btn title="Devam" style={{ flex: 1 }} onPress={() => router.back()} /> : null}
+          </Animated.View>
+        ) : null}
       </View>
     );
   }
@@ -98,6 +161,15 @@ export default function LogEntry() {
         }}
       />
       <EntryForm ex={ex} value={value} onChange={setValue} />
+      {ex.type === 'weight' && !ex.perHand ? (
+        <Btn
+          kind="ghost"
+          height={36}
+          title="Plaka hesapla"
+          style={{ alignSelf: 'flex-start', paddingHorizontal: 4 }}
+          onPress={() => router.push({ pathname: '/plates', params: { weight: String(value.weight) } })}
+        />
+      ) : null}
       <View style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4 }}>
         {isRecord ? (
           <Animated.View entering={FadeIn}>

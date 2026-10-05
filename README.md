@@ -48,11 +48,24 @@ Proje bağlantısı `src/lib/supabase.ts` içinde. Publishable anahtar uygulamay
 - `groups`, `group_members`: gruplar, davet kodu, rol (admin/member), durum (active/pending)
 - `entries`: her kayıt (hareket, ağırlık, tekrar, mesafe, tarih, başlangıç ölçümü mü)
 - `likes`: akıştaki "Helal" beğenileri
-- RPC: `create_group`, `join_group`, `regenerate_invite_code`
+- `push_tokens`: arkadaş bildirimleri için cihaz jetonları
+- RPC: `create_group`, `join_group`, `regenerate_invite_code`, `register_push_token`
+- `entries_push_notify` tetikleyicisi: rekor kaydında gruptakilere Expo push gönderir ("seni geçti", "hedefini tamamladı", "rekor kırdı"; her biri `profiles.notify` ile kapatılabilir)
 
 Herkes sadece kendi grubundaki kişilerin profil ve kayıtlarını görebilir, sadece kendi kayıtlarını değiştirebilir.
 
 **Dashboard ayarı:** Authentication → Sign In / Providers → Email → **Confirm email** kapalı olmalı. Açıksa her kayıtta onay e-postası gider ve Supabase'in ücretsiz e-posta limiti (saatte birkaç e-posta) arkadaşların kaydını engeller.
+
+## Bildirimler
+
+- **Hatırlatmalar** (haftalık hatırlatma, 100. gün, yarı yol, son 30 gün, final) telefonda kurulur; Expo Go'da da çalışır.
+- **Arkadaş bildirimleri** sunucudan push olarak gelir. Bunun için uygulamanın bir EAS projesine bağlanması gerekir:
+  ```bash
+  npx eas-cli@latest login
+  npx eas-cli@latest init   # app.json'a projectId yazar
+  ```
+  iPhone'da Expo Go ile çalışır. Android'de Expo Go uzak bildirim almaz; geliştirme derlemesi gerekir:
+  `npx eas-cli@latest build --profile development --platform android` (Firebase/FCM anahtarı da istenir).
 
 ## Yapı
 
@@ -62,14 +75,22 @@ src/
     (tabs)/            Pano, Sıralama, Akış, Profil
     exercise/[key]     Hareket detayı: grafik, ara hedefler, geçmiş
     friend/[id]        Kafa kafaya karşılaştırma
-    log, entry/[id]    Kayıt ekle / düzenle / sil (alt panel)
+    log, entry/[id]    Kayıt ekle / düzenle / sil, kutlama (alt panel)
     groups             Grup seç, katıl, kur, davet kodu paylaş
+    group-admin        Yönetici: isim, kod yenileme, onay, rol, üye çıkarma
+    share, month       Paylaşım kartı ve aylık özet (görsel olarak paylaşılır)
+    guide/[key]        Hareket rehberi ve sayılma kuralı
+    badge/[id]         Rozet detayı
+    plates             Plaka hesaplayıcı
+    notifications      Bildirim ayarları
     onboarding         Profil, grup ve 9 hareketlik başlangıç testi
     sign-in
   components/          Arayüz parçaları (ui, tab bar, grafik, form)
   lib/
     challenge.ts       Kurallar ve tüm hesaplar: ilerleme, ara hedefler, XP, seviye, seri
     data.ts            Supabase sorguları ve React Query hook'ları
+    badges.ts, month.ts, plates.ts, guide.ts
+    notifications.ts   Yerel hatırlatmalar ve push kaydı
 supabase/migrations/   Veritabanı şeması
 ```
 
@@ -77,6 +98,6 @@ Tasarım prototipi: https://claude.ai/artifact/6AtgSF6XKEiWn7UFkbLXWM
 
 ## Yol haritası
 
-- **1. sürüm (bu):** giriş, profil kurulumu ve başlangıç testi, gruplar ve davet kodu, kayıt ekle/düzenle/sil, pano, hareket detayı ve grafik, sıralama (genel, hareket, kilo oranı), akış ve beğeni, ara hedefler, XP, seviye, seri, canlı güncelleme
-- **2. sürüm:** rozetler, kutlama animasyonları, bildirimler, hareket rehberi, paylaşım kartları, grup yönetimi, aylık özet, plaka hesaplayıcı
+- **1. sürüm:** giriş, profil kurulumu ve başlangıç testi, gruplar ve davet kodu, kayıt ekle/düzenle/sil, pano, hareket detayı ve grafik, sıralama (genel, hareket, kilo oranı), akış ve beğeni, ara hedefler, XP, seviye, seri, canlı güncelleme
+- **2. sürüm (bu):** rozetler, kutlama animasyonları, bildirimler, hareket rehberi, paylaşım kartları, grup yönetimi, aylık özet, plaka hesaplayıcı
 - **3. sürüm:** Apple Sağlık / Health Connect, internetsiz kayıt, widget, yıl sonu özeti, final günü

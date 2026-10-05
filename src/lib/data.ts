@@ -27,6 +27,18 @@ function check<T>(res: { data: T; error: { message: string } | null }) {
   return res.data as NonNullable<T>;
 }
 
+/** Postgres numeric değerleri bazen metin gelebilir; hesaplardan önce sayıya çevir. */
+function toEntry(e: Entry): Entry {
+  return { ...e, weight: Number(e.weight), reps: Number(e.reps), distance: Number(e.distance) };
+}
+
+export type NotifyPrefs = { passed: boolean; friend_goal: boolean; friend_record: boolean };
+
+export function notifyPrefs(p: Profile | undefined): NotifyPrefs {
+  const n = (p?.notify ?? {}) as Partial<NotifyPrefs>;
+  return { passed: n.passed ?? true, friend_goal: n.friend_goal ?? true, friend_record: n.friend_record ?? true };
+}
+
 export const keys = {
   profile: (uid: string) => ['profile', uid] as const,
   memberships: (uid: string) => ['memberships', uid] as const,
@@ -52,7 +64,7 @@ export function useUpdateProfile() {
   const uid = useUserId();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (patch: Partial<Pick<Profile, 'name' | 'color' | 'body_weight' | 'onboarded'>>) =>
+    mutationFn: async (patch: Partial<Pick<Profile, 'name' | 'color' | 'body_weight' | 'onboarded' | 'notify'>>) =>
       check(await supabase.from('profiles').update(patch).eq('id', uid).select().single()),
     onSuccess: (p) => {
       qc.setQueryData(keys.profile(uid), p);
@@ -156,6 +168,40 @@ export function useLeaveGroup() {
   });
 }
 
+// ---------------------------------------------------------------- grup yönetimi (yönetici)
+
+export function useGroupAdmin(groupId: string | undefined) {
+  const uid = useUserId();
+  const qc = useQueryClient();
+  const refresh = () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: ['group'] }),
+      qc.invalidateQueries({ queryKey: keys.memberships(uid) }),
+    ]);
+  const gid = groupId ?? '';
+
+  const updateGroup = useMutation({
+    mutationFn: async (patch: { name?: string; require_approval?: boolean }) =>
+      check(await supabase.from('groups').update(patch).eq('id', gid).select().single()),
+    onSuccess: refresh,
+  });
+  const regenerateCode = useMutation({
+    mutationFn: async () => check(await supabase.rpc('regenerate_invite_code', { p_group: gid })),
+    onSuccess: refresh,
+  });
+  const updateMember = useMutation({
+    mutationFn: async ({ userId, ...patch }: { userId: string; role?: 'admin' | 'member'; status?: 'active' }) =>
+      check(await supabase.from('group_members').update(patch).eq('group_id', gid).eq('user_id', userId).select()),
+    onSuccess: refresh,
+  });
+  const removeMember = useMutation({
+    mutationFn: async (userId: string) =>
+      check(await supabase.from('group_members').delete().eq('group_id', gid).eq('user_id', userId)),
+    onSuccess: refresh,
+  });
+  return { updateGroup, regenerateCode, updateMember, removeMember };
+}
+
 // ---------------------------------------------------------------- kayıtlar
 
 export function useMyEntries() {
@@ -163,7 +209,8 @@ export function useMyEntries() {
   return useQuery({
     queryKey: keys.myEntries(uid),
     enabled: !!uid,
-    queryFn: async () => check(await supabase.from('entries').select('*').eq('user_id', uid)) as Entry[],
+    queryFn: async () =>
+      (check(await supabase.from('entries').select('*').eq('user_id', uid)) as Entry[]).map(toEntry),
   });
 }
 
@@ -188,7 +235,7 @@ export function useGroupBoard(groupId: string | undefined) {
       );
       const activeIds = members.filter((m) => m.status === 'active').map((m) => m.user_id);
       const entries = activeIds.length
-        ? (check(await supabase.from('entries').select('*').in('user_id', activeIds)) as Entry[])
+        ? (check(await supabase.from('entries').select('*').in('user_id', activeIds)) as Entry[]).map(toEntry)
         : [];
       return { members, entries };
     },
@@ -238,7 +285,8 @@ function useInvalidateEntries() {
 export function useAddEntries() {
   const invalidate = useInvalidateEntries();
   return useMutation({
-    mutationFn: async (rows: EntryInput[]) => check(await supabase.from('entries').insert(rows).select()),
+    mutationFn: async (rows: EntryInput[]) =>
+      (check(await supabase.from('entries').insert(rows).select()) as Entry[]).map(toEntry),
     onSuccess: invalidate,
   });
 }

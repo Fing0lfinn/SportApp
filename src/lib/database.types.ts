@@ -162,6 +162,35 @@ export type Database = {
           },
         ];
       };
+      push_tokens: {
+        Row: {
+          platform: string | null;
+          token: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          platform?: string | null;
+          token: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          platform?: string | null;
+          token?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'push_tokens_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       profiles: {
         Row: {
           body_weight: number | null;
@@ -169,6 +198,7 @@ export type Database = {
           created_at: string;
           id: string;
           name: string;
+          notify: Json;
           onboarded: boolean;
         };
         Insert: {
@@ -177,6 +207,7 @@ export type Database = {
           created_at?: string;
           id: string;
           name?: string;
+          notify?: Json;
           onboarded?: boolean;
         };
         Update: {
@@ -185,6 +216,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           name?: string;
+          notify?: Json;
           onboarded?: boolean;
         };
         Relationships: [];
@@ -213,6 +245,7 @@ export type Database = {
       };
       join_group: { Args: { p_code: string }; Returns: Json };
       regenerate_invite_code: { Args: { p_group: string }; Returns: string };
+      register_push_token: { Args: { p_platform: string; p_token: string }; Returns: undefined };
     };
     Enums: {
       [_ in never]: never;

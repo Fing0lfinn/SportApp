@@ -2,17 +2,22 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { FlameIcon, Icon } from '@/components/icon';
+import Animated, { ZoomIn } from 'react-native-reanimated';
+
+import { Hexagon } from '@/components/hexagon';
+import { FlameIcon, Icon, type IconName } from '@/components/icon';
 import { Avatar, Bar, Btn, Card, Field, Loading, Screen, Stepper, styles, Txt } from '@/components/ui';
 import { AVATAR_COLORS, C } from '@/constants/theme';
+import { computeBadges } from '@/lib/badges';
 import { EXERCISES, fmt, strengthRatio, XP } from '@/lib/challenge';
 import { useActiveGroup, useGroupBoard, useMyStats, useProfile, useUpdateProfile } from '@/lib/data';
+import { forgetPushToken } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 
 export default function Profile() {
   const profile = useProfile();
   const mine = useMyStats();
-  const { group } = useActiveGroup();
+  const { group, isAdmin } = useActiveGroup();
   const board = useGroupBoard(group?.id);
   const [editing, setEditing] = useState(false);
 
@@ -21,6 +26,8 @@ export default function Profile() {
   const s = mine.stats;
   const rank = board.ranked.findIndex((x) => x.isMe) + 1;
   const ratio = strengthRatio(s, p.body_weight);
+  const badges = computeBadges(s, p.body_weight);
+  const earned = badges.filter((b) => b.earned).length;
 
   return (
     <Screen refreshing={mine.isRefetching} onRefresh={mine.refetch}>
@@ -73,6 +80,33 @@ export default function Profile() {
         <Stat icon={<Icon name="check" size={20} color={C.accent} stroke={3} />} value={s.entries} label="kayıt" />
       </View>
 
+      <View style={{ gap: 12 }}>
+        <View style={styles.rowBetween}>
+          <Txt size={20} weight="extrabold">
+            Rozetler
+          </Txt>
+          <Txt size={14} color={C.sub}>
+            {earned} / {badges.length}
+          </Txt>
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 14 }}>
+          {badges.map((b, i) => (
+            <Animated.View key={b.id} entering={ZoomIn.delay(100 + i * 40).duration(400)} style={{ width: '25%' }}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${b.name}${b.earned ? ', kazanıldı' : ', kilitli'}`}
+                onPress={() => router.push({ pathname: '/badge/[id]', params: { id: b.id } })}
+                style={({ pressed }) => ({ alignItems: 'center', gap: 6, transform: [{ scale: pressed ? 0.94 : 1 }] })}>
+                <Hexagon glyph={b.glyph} earned={b.earned} />
+                <Txt size={12} weight="bold" color={b.earned ? C.text : C.sub} style={{ textAlign: 'center', lineHeight: 15 }}>
+                  {b.name}
+                </Txt>
+              </Pressable>
+            </Animated.View>
+          ))}
+        </View>
+      </View>
+
       <View style={{ gap: 10 }}>
         <Txt size={20} weight="extrabold">
           Başlangıç → şimdi
@@ -106,11 +140,25 @@ export default function Profile() {
 
       <View style={{ gap: 10 }}>
         <Txt size={20} weight="extrabold">
-          Ayarlar
+          Araçlar ve ayarlar
         </Txt>
-        <MenuRow title="Profili düzenle" sub="İsim, renk, vücut ağırlığı" onPress={() => setEditing(!editing)} />
-        <MenuRow title="Gruplar" sub="Katıl, kur, davet kodu paylaş" onPress={() => router.push('/groups')} />
-        <Btn kind="danger" title="Çıkış yap" icon="logout" onPress={() => supabase.auth.signOut()} />
+        <MenuRow icon="calendar" title="Aylık özet" sub="Ayın kayıtları, rekorları, paylaşılabilir kart" onPress={() => router.push('/month')} />
+        <MenuRow icon="scale" title="Plaka hesaplayıcı" sub="Bara hangi plakaları takacağını göster" onPress={() => router.push('/plates')} />
+        <MenuRow icon="bell" title="Bildirimler" sub="Arkadaş bildirimleri ve hatırlatmalar" onPress={() => router.push('/notifications')} />
+        {isAdmin ? (
+          <MenuRow icon="settings" title="Grubu yönet" sub="Üyeler, istekler, davet kodu" onPress={() => router.push('/group-admin')} />
+        ) : null}
+        <MenuRow icon="user" title="Profili düzenle" sub="İsim, renk, vücut ağırlığı" onPress={() => setEditing(!editing)} />
+        <MenuRow icon="home" title="Gruplar" sub="Katıl, kur, davet kodu paylaş" onPress={() => router.push('/groups')} />
+        <Btn
+          kind="danger"
+          title="Çıkış yap"
+          icon="logout"
+          onPress={async () => {
+            await forgetPushToken().catch(() => {});
+            await supabase.auth.signOut();
+          }}
+        />
       </View>
     </Screen>
   );
@@ -130,15 +178,18 @@ function Stat({ icon, value, label }: { icon: React.ReactNode; value: number; la
   );
 }
 
-function MenuRow({ title, sub, onPress }: { title: string; sub: string; onPress: () => void }) {
+function MenuRow({ icon, title, sub, onPress }: { icon: IconName; title: string; sub: string; onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
-        { backgroundColor: C.surface, borderRadius: 18, padding: 16, transform: [{ scale: pressed ? 0.98 : 1 }] },
+        { backgroundColor: C.surface, borderRadius: 18, padding: 14, transform: [{ scale: pressed ? 0.98 : 1 }] },
       ]}>
+      <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: C.surface2, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={20} color={C.accent} />
+      </View>
       <View style={{ flex: 1 }}>
         <Txt size={16} weight="bold">
           {title}

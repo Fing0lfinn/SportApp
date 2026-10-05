@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Icon } from '@/components/icon';
 import { ProgressChart } from '@/components/progress-chart';
 import { Avatar, Bar, Btn, Card, IconBtn, Loading, Pill, Screen, styles, Txt } from '@/components/ui';
 import { C } from '@/constants/theme';
@@ -59,7 +60,28 @@ export default function ExerciseDetail() {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <Screen bottom={130}>
-        <IconBtn name="back" label="Geri" onPress={() => router.back()} />
+        <View style={styles.rowBetween}>
+          <IconBtn name="back" label="Geri" onPress={() => router.back()} />
+          <View style={[styles.row, { gap: 8 }]}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push({ pathname: '/guide/[key]', params: { key: ex.key } })}
+              style={({ pressed }) => [
+                styles.row,
+                { gap: 6, height: 44, paddingHorizontal: 14, borderRadius: 22, backgroundColor: C.surface, transform: [{ scale: pressed ? 0.96 : 1 }] },
+              ]}>
+              <Icon name="book" size={18} color={C.accent} />
+              <Txt size={14} weight="bold">
+                Nasıl yapılır?
+              </Txt>
+            </Pressable>
+            <IconBtn
+              name="share"
+              label="Paylaş"
+              onPress={() => router.push({ pathname: '/share', params: { exercise: ex.key } })}
+            />
+          </View>
+        </View>
         <View>
           <Txt size={32} weight="extrabold" style={{ lineHeight: 38 }}>
             {ex.name}
