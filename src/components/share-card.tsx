@@ -4,13 +4,18 @@ import { Platform, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 
 import { C } from '@/constants/theme';
+import { strings } from '@/i18n';
 
 import { Avatar, Bar, Txt } from './ui';
 
+/** pro: sadece Pro'da açık temalar */
 export const SHARE_THEMES = [
-  { key: 'neon', label: 'Neon', bg: C.accent, ink: C.accentInk, pillBg: C.accentInk, pillFg: C.accent, track: 'rgba(11,13,16,0.18)', bar: C.accentInk },
-  { key: 'night', label: 'Gece', bg: C.bg, ink: C.text, pillBg: C.accent, pillFg: C.accentInk, track: C.line, bar: C.accent },
-  { key: 'gold', label: 'Altın', bg: C.gold, ink: C.accentInk, pillBg: C.accentInk, pillFg: C.gold, track: 'rgba(11,13,16,0.18)', bar: C.accentInk },
+  { key: 'neon', pro: false, bg: C.accent, ink: C.accentInk, pillBg: C.accentInk, pillFg: C.accent, track: 'rgba(11,13,16,0.18)', bar: C.accentInk },
+  { key: 'night', pro: false, bg: C.bg, ink: C.text, pillBg: C.accent, pillFg: C.accentInk, track: C.line, bar: C.accent },
+  { key: 'gold', pro: false, bg: C.gold, ink: C.accentInk, pillBg: C.accentInk, pillFg: C.gold, track: 'rgba(11,13,16,0.18)', bar: C.accentInk },
+  { key: 'ocean', pro: true, bg: '#2D6BFF', ink: '#FFFFFF', pillBg: '#FFFFFF', pillFg: '#2D6BFF', track: 'rgba(255,255,255,0.25)', bar: '#FFFFFF' },
+  { key: 'rose', pro: true, bg: '#FF5C8A', ink: '#1A0B10', pillBg: '#1A0B10', pillFg: '#FF5C8A', track: 'rgba(26,11,16,0.18)', bar: '#1A0B10' },
+  { key: 'paper', pro: true, bg: '#F4F1EA', ink: '#0B0D10', pillBg: '#0B0D10', pillFg: '#F4F1EA', track: 'rgba(11,13,16,0.12)', bar: '#0B0D10' },
 ] as const;
 
 export type ShareTheme = (typeof SHARE_THEMES)[number];
@@ -43,10 +48,10 @@ export function CardFrame({
       }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Txt size={11} weight="black" color={theme.ink} style={{ letterSpacing: 1 }}>
-          1 YIL MEYDAN OKUMASI
+          {strings().share.brand}
         </Txt>
         <Txt size={11} weight="black" color={theme.ink} style={{ letterSpacing: 1 }}>
-          GÜN {dayNum}
+          {strings().share.day(dayNum)}
         </Txt>
       </View>
       <View style={{ gap: 8 }}>{children}</View>
@@ -109,7 +114,7 @@ export function RecordCardBody({
       <View style={{ marginTop: 6, gap: 6 }}>
         <Bar value={progress} height={8} color={theme.bar} track={theme.track} delay={250} />
         <Txt size={12} weight="extrabold" color={theme.ink}>
-          %{Math.round(Math.min(1, progress) * 100)} · hedef {goalText}
+          {strings().share.goalLine(Math.round(Math.min(1, progress) * 100), goalText)}
         </Txt>
       </View>
     </>
@@ -121,6 +126,6 @@ export async function shareCard(ref: RefObject<View | null>) {
   if (Platform.OS === 'web') return false;
   const uri = await captureRef(ref, { format: 'png', quality: 1 });
   if (!(await Sharing.isAvailableAsync())) return false;
-  await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Paylaş', UTI: 'public.png' });
+  await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: strings().common.share, UTI: 'public.png' });
   return true;
 }

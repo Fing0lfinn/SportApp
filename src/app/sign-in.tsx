@@ -1,17 +1,22 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
+import { Icon } from '@/components/icon';
 import { Btn, Field, Txt } from '@/components/ui';
-import { C, F } from '@/constants/theme';
+import { C, font } from '@/constants/theme';
+import { LANGS, useLang, useStrings } from '@/i18n';
 import { authErrorText } from '@/lib/auth';
 import { signInWithApple, signInWithGoogle } from '@/lib/social-auth';
 import { supabase } from '@/lib/supabase';
 
 export default function SignIn() {
+  const t = useStrings().auth;
+  const lang = useLang();
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<'signin' | 'signup'>('signup');
   const [email, setEmail] = useState('');
@@ -43,7 +48,7 @@ export default function SignIn() {
     setError('');
     setInfo('');
     if (!email.trim() || password.length < 6) {
-      setError('E-posta ve en az 6 karakterlik bir şifre gir.');
+      setError(t.missing);
       return;
     }
     setBusy(true);
@@ -52,7 +57,7 @@ export default function SignIn() {
     setBusy(false);
     if (res.error) setError(authErrorText(res.error.message));
     else if (mode === 'signup' && !res.data.session) {
-      setInfo('Hesabın oluştu. E-postana gelen onay linkine tıkla, sonra buradan giriş yap.');
+      setInfo(t.confirmSent);
       setMode('signin');
     }
   };
@@ -68,19 +73,41 @@ export default function SignIn() {
           paddingHorizontal: 24,
           gap: 28,
         }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.language}
+          onPress={() => router.push('/language')}
+          style={({ pressed }) => ({
+            position: 'absolute',
+            top: insets.top + 8,
+            right: 20,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            height: 40,
+            paddingHorizontal: 14,
+            borderRadius: 20,
+            backgroundColor: C.surface,
+            transform: [{ scale: pressed ? 0.96 : 1 }],
+          })}>
+          <Icon name="globe" size={18} color={C.sub} />
+          <Txt size={14} weight="bold" color={C.sub}>
+            {LANGS.find((l) => l.code === lang)?.name}
+          </Txt>
+        </Pressable>
         <View style={{ gap: 2 }}>
           <Animated.Text entering={FadeInDown.delay(100).duration(600)} style={big}>
-            1 yıl.
+            {t.hero1}
           </Animated.Text>
           <Animated.Text entering={FadeInDown.delay(250).duration(600)} style={[big, { color: C.accent }]}>
-            9 hedef.
+            {t.hero2}
           </Animated.Text>
           <Animated.Text entering={FadeInDown.delay(400).duration(600)} style={big}>
-            Arkadaşlarınla.
+            {t.hero3}
           </Animated.Text>
           <Animated.View entering={FadeIn.delay(600).duration(600)}>
             <Txt size={17} color={C.sub} style={{ marginTop: 14, lineHeight: 25 }}>
-              4 Ekim 2026 – 4 Ekim 2027 arasında listeyi kim tamamlayacak? İlerlemeni gir, arkadaşlarınla yarış.
+              {t.intro}
             </Txt>
           </Animated.View>
         </View>
@@ -101,26 +128,26 @@ export default function SignIn() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 4 }}>
             <View style={{ flex: 1, height: 1, backgroundColor: C.line }} />
             <Txt size={14} color={C.sub}>
-              ya da e-posta ile
+              {t.orEmail}
             </Txt>
             <View style={{ flex: 1, height: 1, backgroundColor: C.line }} />
           </View>
           <Field
-            label="E-posta"
+            label={t.email}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             autoComplete="email"
             keyboardType="email-address"
-            placeholder="ornek@mail.com"
+            placeholder={t.emailPlaceholder}
           />
           <Field
-            label="Şifre"
+            label={t.password}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-            placeholder="En az 6 karakter"
+            placeholder={t.passwordPlaceholder}
             onSubmitEditing={submit}
           />
           {error ? (
@@ -133,11 +160,11 @@ export default function SignIn() {
               {info}
             </Txt>
           ) : null}
-          <Btn title={mode === 'signup' ? 'Hesap oluştur' : 'Giriş yap'} onPress={submit} loading={busy} />
+          <Btn title={mode === 'signup' ? t.signUp : t.signIn} onPress={submit} loading={busy} />
           <Btn
             kind="ghost"
             height={48}
-            title={mode === 'signup' ? 'Zaten hesabım var · Giriş yap' : 'Hesabım yok · Kayıt ol'}
+            title={mode === 'signup' ? t.haveAccount : t.noAccount}
             onPress={() => {
               setMode(mode === 'signup' ? 'signin' : 'signup');
               setError('');
@@ -150,10 +177,11 @@ export default function SignIn() {
 }
 
 function GoogleButton({ busy, disabled, onPress }: { busy: boolean; disabled: boolean; onPress: () => void }) {
+  const t = useStrings().auth;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Google ile devam et"
+      accessibilityLabel={t.google}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => ({
@@ -192,7 +220,7 @@ function GoogleButton({ busy, disabled, onPress }: { busy: boolean; disabled: bo
             />
           </Svg>
           <Txt size={17} weight="extrabold">
-            Google ile devam et
+            {t.google}
           </Txt>
         </>
       )}
@@ -200,4 +228,4 @@ function GoogleButton({ busy, disabled, onPress }: { busy: boolean; disabled: bo
   );
 }
 
-const big = { fontFamily: F.black, fontSize: 48, lineHeight: 52, color: C.text, letterSpacing: -1 };
+const big = { ...font('black'), fontSize: 48, lineHeight: 52, color: C.text, letterSpacing: -1 };

@@ -1,3 +1,5 @@
+import { getLang } from '@/i18n';
+
 export const C = {
   bg: '#0B0D10',
   surface: '#16191E',
@@ -25,5 +27,19 @@ export const F = {
   extrabold: 'Figtree_800ExtraBold',
   black: 'Figtree_900Black',
 } as const;
+
+const WEIGHTS = {
+  regular: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+  extrabold: '800',
+  black: '900',
+} as const;
+
+/** Yazı tipi: Figtree'de Japonca harf yok, Japoncada sistem fontu + kalınlık kullanılır. */
+export function font(weight: keyof typeof F) {
+  return getLang() === 'ja' ? { fontWeight: WEIGHTS[weight] } : { fontFamily: F[weight] };
+}
 
 export const AVATAR_COLORS = ['#C8F04A', '#4AA8FF', '#FF8A3D', '#B58CFF', '#3DD6B0', '#F2C14E'] as const;

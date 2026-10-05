@@ -1,0 +1,9 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "1 Year",
+    "NSUserTrackingUsageDescription": "Allow tracking to see more relevant ads. The app works the same either way."
+  },
+  "android": {
+    "app_name": "1 Year"
+  }
+}

@@ -8,8 +8,9 @@ import { Icon } from '@/components/icon';
 import { shareCard } from '@/components/share-card';
 import { Avatar, Btn, Loading, Txt } from '@/components/ui';
 import { C } from '@/constants/theme';
+import { useStrings } from '@/i18n';
 import { computeBadges } from '@/lib/badges';
-import { EXERCISES, fmt } from '@/lib/challenge';
+import { endISO, exStats, fmtShort, formatDate, formatDay, unitOf } from '@/lib/challenge';
 import { useActiveGroup, useGroupBoard, useMyStats, useProfile } from '@/lib/data';
 import { isFinalOver } from '@/lib/final';
 
@@ -18,40 +19,43 @@ const BG = [C.accent, C.orange, '#4AA8FF', C.gold, '#B58CFF', C.bg];
 
 /** Yıl sonu özeti: hikaye gibi ilerleyen slaytlar. Finalden önce "önizleme" olarak açılır. */
 export default function Wrapped() {
+  const t = useStrings();
+  const w = t.wrapped;
   const insets = useSafeAreaInsets();
   const profile = useProfile();
   const mine = useMyStats();
+  const ch = mine.challenge;
   const { group } = useActiveGroup();
-  const board = useGroupBoard(group?.id);
+  const board = useGroupBoard(ch);
   const [slide, setSlide] = useState(0);
   const shareRef = useRef<View>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       if (slide < BG.length - 1) setSlide(slide + 1);
     }, SLIDE_MS);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [slide]);
 
   if (!profile.data || mine.isLoading) return <Loading />;
 
   const s = mine.stats;
-  const final = isFinalOver();
+  const final = isFinalOver(ch.start);
   const ink = slide === BG.length - 1 ? C.text : C.accentInk;
   let bestKey = -1;
   let bestShare = 0;
-  EXERCISES.forEach((ex, i) => {
-    const st = s.byExercise[ex.key];
+  ch.exercises.forEach((ex, i) => {
+    const st = exStats(s, ex.key);
     const share = (st.best - st.start) / ex.goal;
     if (share > bestShare) {
       bestShare = share;
       bestKey = i;
     }
   });
-  const bestEx = bestKey >= 0 ? EXERCISES[bestKey] : null;
-  const bestSt = bestEx ? s.byExercise[bestEx.key] : null;
-  const doneNames = EXERCISES.filter((ex) => s.byExercise[ex.key].best >= ex.goal).map((ex) => ex.name);
-  const badgeCount = computeBadges(s, profile.data.body_weight).filter((b) => b.earned).length;
+  const bestEx = bestKey >= 0 ? ch.exercises[bestKey] : null;
+  const bestSt = bestEx ? exStats(s, bestEx.key) : null;
+  const doneNames = ch.exercises.filter((ex) => exStats(s, ex.key).best >= ex.goal).map((ex) => ex.name);
+  const badgeCount = computeBadges(s, profile.data.body_weight, ch).filter((b) => b.earned).length;
   const rank = board.ranked.findIndex((p) => p.isMe) + 1;
   const top = board.ranked.slice(0, 3);
   const podium = [top[1], top[0], top[2]].filter(Boolean);
@@ -70,24 +74,24 @@ export default function Wrapped() {
             {!final ? (
               <Animated.View entering={FadeIn.delay(100)} style={{ alignSelf: 'flex-start', backgroundColor: C.accentInk, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}>
                 <Txt size={13} weight="black" color={C.accent} style={{ letterSpacing: 1 }}>
-                  ÖNİZLEME
+                  {w.preview}
                 </Txt>
               </Animated.View>
             ) : null}
             <Animated.View entering={ZoomIn.delay(200).duration(600)}>
               <Txt size={72} weight="black" color={ink} style={{ lineHeight: 72, letterSpacing: -2 }}>
-                {'Senin\n1 yılın'}
+                {w.yourYear}
               </Txt>
             </Animated.View>
             <Animated.View entering={FadeInDown.delay(500)}>
               <Txt size={18} weight="bold" color={ink}>
-                4 Ekim 2026 – 4 Ekim 2027
+                {formatDate(ch.start)} – {formatDate(endISO(ch.start))}
               </Txt>
             </Animated.View>
             {!final ? (
               <Animated.View entering={FadeInDown.delay(700)}>
                 <Txt size={15} weight="semibold" color={ink} style={{ opacity: 0.75, lineHeight: 21 }}>
-                  {"Gerçek özet 4 Ekim 2027'de açılır. Şimdilik bugüne kadarki halini görüyorsun."}
+                  {w.previewNote(formatDay(endISO(ch.start)))}
                 </Txt>
               </Animated.View>
             ) : null}
@@ -98,7 +102,7 @@ export default function Wrapped() {
           <View key="s1" style={{ gap: 6 }}>
             <Animated.View entering={FadeInDown.delay(100)}>
               <Txt size={22} weight="extrabold" color={ink}>
-                {final ? 'Bu yıl' : 'Bugüne kadar'}
+                {final ? w.thisYear : w.soFar}
               </Txt>
             </Animated.View>
             <Animated.View entering={ZoomIn.delay(250).duration(600)}>
@@ -108,12 +112,12 @@ export default function Wrapped() {
             </Animated.View>
             <Animated.View entering={FadeInDown.delay(500)}>
               <Txt size={30} weight="black" color={ink}>
-                kayıt girdin
+                {w.entries}
               </Txt>
             </Animated.View>
             <Animated.View entering={FadeInDown.delay(800)}>
               <Txt size={18} weight="bold" color={ink} style={{ marginTop: 12 }}>
-                {s.activeDays} farklı gün salondaydın.
+                {w.activeDays(s.activeDays)}
               </Txt>
             </Animated.View>
           </View>
@@ -123,24 +127,24 @@ export default function Wrapped() {
           <View key="s2" style={{ gap: 10 }}>
             <Animated.View entering={FadeInDown.delay(100)}>
               <Txt size={22} weight="extrabold" color={ink}>
-                En büyük gelişimin
+                {w.biggest}
               </Txt>
             </Animated.View>
             <Animated.View entering={FadeInDown.delay(300)}>
               <Txt size={42} weight="black" color={ink} style={{ lineHeight: 46 }}>
-                {bestEx ? bestEx.name : 'Henüz yok'}
+                {bestEx ? bestEx.name : w.none}
               </Txt>
             </Animated.View>
             <Animated.View entering={ZoomIn.delay(500).duration(600)}>
               <Txt size={110} weight="black" color={ink} style={{ lineHeight: 112, letterSpacing: -3 }}>
-                {bestEx && bestSt ? `+${fmt(bestSt.best - bestSt.start)}` : '–'}
+                {bestEx && bestSt ? `+${fmtShort(bestEx, bestSt.best - bestSt.start)}` : '–'}
               </Txt>
             </Animated.View>
             <Animated.View entering={FadeInDown.delay(800)}>
               <Txt size={20} weight="bold" color={ink}>
                 {bestEx && bestSt
-                  ? `${fmt(bestSt.start)} → ${fmt(bestSt.best)} ${bestEx.unit}`
-                  : 'İlk rekorunu kırınca burada görünecek.'}
+                  ? `${fmtShort(bestEx, bestSt.start)} → ${fmtShort(bestEx, bestSt.best)} ${bestEx.type === 'reps' ? t.units.reps : unitOf(bestEx, bestSt.best)}`.trim()
+                  : w.noneYet}
               </Txt>
             </Animated.View>
           </View>
@@ -150,14 +154,14 @@ export default function Wrapped() {
           <View key="s3" style={{ gap: 12 }}>
             <Animated.View entering={FadeInDown.delay(100)}>
               <Txt size={22} weight="extrabold" color={ink}>
-                Tamamlanan hedefler
+                {w.goalsDone}
               </Txt>
             </Animated.View>
             <Animated.View entering={ZoomIn.delay(250).duration(600)}>
               <Txt size={140} weight="black" color={ink} style={{ lineHeight: 140, letterSpacing: -4 }}>
                 {s.done}
                 <Txt size={60} weight="black" color={ink}>
-                  /9
+                  /{ch.exercises.length}
                 </Txt>
               </Txt>
             </Animated.View>
@@ -177,7 +181,7 @@ export default function Wrapped() {
           <View key="s4" style={{ gap: 6 }}>
             <Animated.View entering={FadeInDown.delay(100)}>
               <Txt size={22} weight="extrabold" color={ink}>
-                En uzun serin
+                {w.longestStreak}
               </Txt>
             </Animated.View>
             <Animated.View entering={ZoomIn.delay(250).duration(600)}>
@@ -187,12 +191,12 @@ export default function Wrapped() {
             </Animated.View>
             <Animated.View entering={FadeInDown.delay(500)}>
               <Txt size={30} weight="black" color={ink}>
-                hafta üst üste
+                {w.weeksInRow}
               </Txt>
             </Animated.View>
             <Animated.View entering={FadeInDown.delay(800)}>
               <Txt size={18} weight="bold" color={ink} style={{ marginTop: 12 }}>
-                {badgeCount} rozet · {s.xp} XP · Seviye: {s.levelName}
+                {w.summary(badgeCount, s.xp, t.levels[s.level])}
               </Txt>
             </Animated.View>
           </View>
@@ -202,12 +206,12 @@ export default function Wrapped() {
           <View key="s5" style={{ gap: 16 }}>
             <Animated.View entering={FadeInDown.delay(100)}>
               <Txt size={22} weight="extrabold" color={ink}>
-                {group?.name ?? 'Grubun'}
+                {group?.name ?? w.yourGroup}
               </Txt>
             </Animated.View>
             <Animated.View entering={ZoomIn.delay(200).duration(600)}>
               <Txt size={52} weight="black" color={ink} style={{ lineHeight: 56 }}>
-                {rank ? `${rank}. sıradasın` : 'Bir gruba katıl'}
+                {rank ? w.rank(rank) : w.joinGroup}
               </Txt>
             </Animated.View>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, height: 240 }}>
@@ -226,7 +230,7 @@ export default function Wrapped() {
                         {place}
                       </Txt>
                       <Txt size={14} weight="bold" color={C.sub}>
-                        %{p.stats.pct}
+                        {t.pct(p.stats.pct)}
                       </Txt>
                     </Animated.View>
                   </View>
@@ -237,8 +241,8 @@ export default function Wrapped() {
         ) : null}
       </View>
 
-      <Pressable accessibilityLabel="Önceki" onPress={() => go(slide - 1)} style={{ position: 'absolute', top: 90, left: 0, bottom: 0, width: '35%' }} />
-      <Pressable accessibilityLabel="Sonraki" onPress={() => go(slide + 1)} style={{ position: 'absolute', top: 90, right: 0, bottom: 0, width: '65%' }} />
+      <Pressable accessibilityLabel={w.prev} onPress={() => go(slide - 1)} style={{ position: 'absolute', top: 90, left: 0, bottom: 0, width: '35%' }} />
+      <Pressable accessibilityLabel={w.next} onPress={() => go(slide + 1)} style={{ position: 'absolute', top: 90, right: 0, bottom: 0, width: '65%' }} />
 
       <View style={{ position: 'absolute', top: insets.top + 12, left: 16, right: 16, flexDirection: 'row', gap: 4 }}>
         {BG.map((_, i) => (
@@ -247,7 +251,7 @@ export default function Wrapped() {
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Kapat"
+        accessibilityLabel={t.common.close}
         onPress={() => router.back()}
         hitSlop={10}
         style={{ position: 'absolute', top: insets.top + 28, right: 12, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
@@ -256,7 +260,7 @@ export default function Wrapped() {
 
       {slide === BG.length - 1 ? (
         <Animated.View entering={FadeInDown.delay(900)} style={{ position: 'absolute', left: 28, right: 28, bottom: insets.bottom + 24 }}>
-          <Btn title="Paylaş" icon="share" onPress={() => shareCard(shareRef).catch(() => {})} />
+          <Btn title={t.common.share} icon="share" onPress={() => shareCard(shareRef).catch(() => {})} />
         </Animated.View>
       ) : null}
     </View>

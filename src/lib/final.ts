@@ -1,13 +1,19 @@
-/** Final: 4 Ekim 2027, 20:00 Türkiye saati. */
-export const FINAL_AT = new Date('2027-10-04T20:00:00+03:00');
+import { dateFromIndex, TOTAL_DAYS } from './challenge';
 
-export function isFinalOver(now = Date.now()) {
-  return now >= FINAL_AT.getTime();
+/** Final: grubun 365. günü, akşam 20:00 (telefonun saatine göre). */
+export function finalAt(start: string) {
+  const d = dateFromIndex(TOTAL_DAYS, start);
+  d.setHours(20, 0, 0, 0);
+  return d;
+}
+
+export function isFinalOver(start: string, now = Date.now()) {
+  return now >= finalAt(start).getTime();
 }
 
 /** Finale kalan süre (gün, saat, dakika, saniye). */
-export function countdown(now = Date.now()) {
-  const ms = Math.max(0, FINAL_AT.getTime() - now);
+export function countdown(start: string, now = Date.now()) {
+  const ms = Math.max(0, finalAt(start).getTime() - now);
   const s = Math.floor(ms / 1000);
   return {
     days: Math.floor(s / 86400),
@@ -19,6 +25,12 @@ export function countdown(now = Date.now()) {
 }
 
 /** Final günü mü (ama henüz saat 20:00 olmadı)? */
-export function isFinalDay(now = new Date()) {
-  return now.getFullYear() === 2027 && now.getMonth() === 9 && now.getDate() === 4 && !isFinalOver(now.getTime());
+export function isFinalDay(start: string, now = new Date()) {
+  const f = finalAt(start);
+  return (
+    now.getFullYear() === f.getFullYear() &&
+    now.getMonth() === f.getMonth() &&
+    now.getDate() === f.getDate() &&
+    !isFinalOver(start, now.getTime())
+  );
 }

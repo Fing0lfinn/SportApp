@@ -1,6 +1,8 @@
-# 1 Yıl Meydan Okuması
+# 1 Year Challenge (1 Yıl)
 
-Arkadaşlarla 4 Ekim 2026 – 4 Ekim 2027 arasında 9 güç hedefine kim ulaşacak, takip eden mobil uygulama.
+Arkadaş gruplarının 1 yıl boyunca seçtikleri güç hedeflerine kim ulaşacak, takip eden mobil uygulama. Her grubun kendi başlangıç tarihi, hareketleri ve hedefleri var. Uygulama Türkçe, İngilizce, Japonca, İspanyolca ve Almanca.
+
+İlk grubun (4 Ekim 2026 – 4 Ekim 2027) hedefleri, yeni grupların da varsayılan listesi:
 
 | Hareket | Hedef |
 | --- | --- |
@@ -15,6 +17,8 @@ Arkadaşlarla 4 Ekim 2026 – 4 Ekim 2027 arasında 9 güç hedefine kim ulaşac
 | Bent Over Row | 80 kg |
 
 Hedef, o ağırlık **gerçekten en az 1 tekrar kaldırılınca** tamamlanır. Tahmini maks (Epley) sadece bilgi olarak gösterilir.
+
+Grup yöneticisi **Profil → Hedefler ve hareketler** ekranından başlangıç tarihini değiştirir, 25 hazır hareketten (`src/lib/catalog.ts`) ekler ya da çıkarır, hedefleri ayarlar. Listede olmayan hareketi kendi adıyla eklemek Pro'ya özel.
 
 ## Teknoloji
 
@@ -49,8 +53,10 @@ Proje bağlantısı `src/lib/supabase.ts` içinde. Publishable anahtar uygulamay
 - `entries`: her kayıt (hareket, ağırlık, tekrar, mesafe, tarih, başlangıç ölçümü mü)
 - `likes`: akıştaki "Helal" beğenileri
 - `push_tokens`: arkadaş bildirimleri için cihaz jetonları
-- RPC: `create_group`, `join_group`, `regenerate_invite_code`, `register_push_token`
-- `entries_push_notify` tetikleyicisi: rekor kaydında gruptakilere Expo push gönderir ("seni geçti", "hedefini tamamladı", "rekor kırdı"; her biri `profiles.notify` ile kapatılabilir)
+- `groups.start_date`, `group_exercises`: her grubun başlangıç tarihi, hareket listesi ve hedefleri (yönetici düzenler)
+- `profiles.locale`: arkadaş bildirimlerinin dili
+- RPC: `create_group(p_name, p_start, p_exercises)`, `join_group`, `regenerate_invite_code`, `register_push_token`, `delete_account`
+- `entries_push_notify` tetikleyicisi: rekor kaydında gruptakilere, her birinin dilinde Expo push gönderir ("seni geçti", "hedefini tamamladı", "rekor kırdı"; her biri `profiles.notify` ile kapatılabilir)
 
 **Apple ve Google ile giriş:**
 
@@ -61,6 +67,15 @@ Proje bağlantısı `src/lib/supabase.ts` içinde. Publishable anahtar uygulamay
 Herkes sadece kendi grubundaki kişilerin profil ve kayıtlarını görebilir, sadece kendi kayıtlarını değiştirebilir.
 
 **Dashboard ayarı:** Authentication → Sign In / Providers → Email → **Confirm email** kapalı olmalı. Açıksa her kayıtta onay e-postası gider ve Supabase'in ücretsiz e-posta limiti (saatte birkaç e-posta) arkadaşların kaydını engeller.
+
+## Dil
+
+Metinler `src/i18n/` altında: `tr.ts` asıl kaynak, `en`, `ja`, `es`, `de` aynı yapıyı izler (eksik anahtar tip hatası verir). Hareket rehberleri `src/i18n/guides/`. Uygulama telefonun dilini kullanır, Profil → Dil'den değiştirilebilir. Ana ekrandaki uygulama adı `locales/*.json` içinde.
+
+## Reklam ve Pro
+
+- **Reklam:** Google AdMob (`react-native-google-mobile-ads`). Liste sonlarında küçük banner. Avrupa için Google onay formu, iPhone'da izleme izni sorulur. Gerçek kimlikler girilene kadar Google'ın test reklamları görünür: uygulama kimlikleri `app.json`, reklam birimleri `src/lib/config.ts`.
+- **Pro:** Tek seferlik satın alma, RevenueCat (`react-native-purchases`) ile. Reklamları kaldırır, özel hareket ve ekstra kart temalarını açar. Anahtar `src/lib/config.ts` → `REVENUECAT_KEY`; RevenueCat'te yetki adı `pro`.
 
 ## İnternetsiz kullanım
 
@@ -88,6 +103,8 @@ src/
     log, entry/[id]    Kayıt ekle / düzenle / sil, kutlama (alt panel)
     groups             Grup seç, katıl, kur, davet kodu paylaş
     group-admin        Yönetici: isim, kod yenileme, onay, rol, üye çıkarma
+    challenge          Grubun başlangıç tarihi, hareketleri ve hedefleri (yeni grup kurarken de)
+    pro, language      Pro satın alma, dil seçimi
     share, month       Paylaşım kartı ve aylık özet (görsel olarak paylaşılır)
     guide/[key]        Hareket rehberi ve sayılma kuralı
     badge/[id]         Rozet detayı
@@ -98,8 +115,11 @@ src/
     onboarding         Profil, grup ve 9 hareketlik başlangıç testi
     sign-in
   components/          Arayüz parçaları (ui, tab bar, grafik, form)
+  i18n/                Metinler (tr, en, ja, es, de) ve hareket rehberleri
   lib/
     challenge.ts       Kurallar ve tüm hesaplar: ilerleme, ara hedefler, XP, seviye, seri
+    catalog.ts         Gruplara eklenebilen hazır hareketler
+    pro.ts, ads.ts     Pro satın alma (RevenueCat) ve reklam (AdMob)
     data.ts            Supabase sorguları ve React Query hook'ları
     badges.ts, month.ts, plates.ts, guide.ts
     notifications.ts   Yerel hatırlatmalar ve push kaydı
@@ -114,5 +134,6 @@ Tasarım prototipi: https://claude.ai/artifact/6AtgSF6XKEiWn7UFkbLXWM
 
 - **1. sürüm:** giriş, profil kurulumu ve başlangıç testi, gruplar ve davet kodu, kayıt ekle/düzenle/sil, pano, hareket detayı ve grafik, sıralama (genel, hareket, kilo oranı), akış ve beğeni, ara hedefler, XP, seviye, seri, canlı güncelleme
 - **2. sürüm:** rozetler, kutlama animasyonları, bildirimler, hareket rehberi, paylaşım kartları, grup yönetimi, aylık özet, plaka hesaplayıcı
-- **3. sürüm (bu):** internetsiz kayıt, yıl sonu özeti, final günü
+- **3. sürüm:** internetsiz kayıt, yıl sonu özeti, final günü
+- **4. sürüm (bu):** Apple ve Google ile giriş, grup bazlı hareketler ve hedefler, 5 dil, reklam ve Pro
 - **Sonra (EAS derlemesi gerekir):** Apple Sağlık / Health Connect, ana ekran widget'ı. Bu ikisi Expo Go'da çalışmayan yerel kod istiyor.

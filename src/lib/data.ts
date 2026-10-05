@@ -3,15 +3,31 @@ import * as Crypto from 'expo-crypto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 
+import { strings, useLang } from '@/i18n';
+
 import { useUserId } from './auth';
-import { computeStats, type Entry, type ExerciseKey, type UserStats } from './challenge';
-import type { Tables } from './database.types';
+import {
+  buildChallenge,
+  computeStats,
+  DEFAULT_ROWS,
+  todayISO,
+  type Challenge,
+  type Entry,
+  type ExerciseRow,
+  type UserStats,
+} from './challenge';
+import type { Json, Tables } from './database.types';
 import { applyOutbox, enqueue, flushOutbox, readOutbox, type EntryPatch, type OutboxOp } from './outbox';
 import { supabase } from './supabase';
 
 export type Profile = Tables<'profiles'>;
 export type Group = Tables<'groups'>;
-export type Membership = { group: Group; role: 'admin' | 'member'; status: 'active' | 'pending' };
+export type Membership = {
+  group: Group;
+  role: 'admin' | 'member';
+  status: 'active' | 'pending';
+  exercises: ExerciseRow[];
+};
 export type Player = {
   id: string;
   name: string;
@@ -67,7 +83,9 @@ export function useUpdateProfile() {
   const uid = useUserId();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (patch: Partial<Pick<Profile, 'name' | 'color' | 'body_weight' | 'onboarded' | 'notify'>>) =>
+    mutationFn: async (
+      patch: Partial<Pick<Profile, 'name' | 'color' | 'body_weight' | 'onboarded' | 'notify' | 'locale'>>,
+    ) =>
       check(await supabase.from('profiles').update(patch).eq('id', uid).select().single()),
     onSuccess: (p) => {
       qc.setQueryData(keys.profile(uid), p);
@@ -87,13 +105,21 @@ export function useMemberships() {
       const rows = check(
         await supabase
           .from('group_members')
-          .select('role, status, groups(*)')
+          .select('role, status, groups(*, group_exercises(*))')
           .eq('user_id', uid)
           .order('joined_at'),
       );
       return rows
         .filter((r) => r.groups)
-        .map((r) => ({ group: r.groups as Group, role: r.role, status: r.status }) as Membership);
+        .map((r) => {
+          const { group_exercises, ...group } = r.groups!;
+          return {
+            group: group as Group,
+            role: r.role,
+            status: r.status,
+            exercises: (group_exercises ?? []).map((x) => ({ ...x, goal: Number(x.goal) })),
+          } as Membership;
+        });
     },
   });
 }
@@ -127,11 +153,49 @@ export function useActiveGroup() {
   };
 }
 
+/**
+ * Aktif grubun meydan okuması: başlangıç tarihi ve hareketleri.
+ * Grubu olmayan kişi ilk sürümün 9 hareketiyle, hesabını açtığı günden başlar.
+ */
+export function useChallenge(): Challenge {
+  const lang = useLang();
+  const { membership } = useActiveGroup();
+  const profile = useProfile();
+  const createdAt = profile.data?.created_at;
+  return useMemo(() => {
+    if (membership && membership.exercises.length) {
+      return buildChallenge(membership.group.id, membership.group.start_date, membership.exercises, lang);
+    }
+    const start = createdAt ? todayISO(new Date(createdAt)) : todayISO();
+    return buildChallenge(membership?.group.id ?? null, membership?.group.start_date ?? start, DEFAULT_ROWS, lang);
+  }, [membership, createdAt, lang]);
+}
+
+/** Grubun hareketleri sunucuya gidecek biçimde */
+function rowsJson(rows: ExerciseRow[]): Json {
+  return rows.map((r, i) => ({
+    exercise: r.exercise,
+    type: r.type,
+    goal: r.goal,
+    per_hand: r.per_hand,
+    distance: r.distance,
+    name: r.name,
+    position: i,
+  }));
+}
+
 export function useCreateGroup() {
   const uid = useUserId();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (name: string) => check(await supabase.rpc('create_group', { p_name: name })),
+    mutationFn: async ({ name, start, exercises }: { name: string; start?: string; exercises?: ExerciseRow[] }) =>
+      check(
+        await supabase.rpc('create_group', {
+          p_name: name,
+          p_start: start,
+          p_exercises: exercises ? rowsJson(exercises) : undefined,
+        }),
+      ),
     onSuccess: async (g) => {
       await AsyncStorage.setItem(`${ACTIVE_KEY}:${uid}`, g.id);
       qc.setQueryData(keys.activeGroup(uid), g.id);
@@ -147,7 +211,7 @@ export function useJoinGroup() {
     mutationFn: async (code: string) => {
       const res = await supabase.rpc('join_group', { p_code: code });
       if (res.error) {
-        throw new Error(res.error.message.includes('invalid_code') ? 'Bu kodla bir grup bulunamadı.' : res.error.message);
+        throw new Error(res.error.message.includes('invalid_code') ? strings().groups.invalidCode : res.error.message);
       }
       return res.data as { group_id: string; name: string; status: 'active' | 'pending' };
     },
@@ -184,8 +248,31 @@ export function useGroupAdmin(groupId: string | undefined) {
   const gid = groupId ?? '';
 
   const updateGroup = useMutation({
-    mutationFn: async (patch: { name?: string; require_approval?: boolean }) =>
+    mutationFn: async (patch: { name?: string; require_approval?: boolean; start_date?: string }) =>
       check(await supabase.from('groups').update(patch).eq('id', gid).select().single()),
+    onSuccess: refresh,
+  });
+  /** Hareket listesini kaydeder: listede olmayanları siler, kalanları sırasıyla yazar. */
+  const saveExercises = useMutation({
+    mutationFn: async (rows: ExerciseRow[]) => {
+      const keep = rows.map((r) => `"${r.exercise}"`).join(',');
+      check(await supabase.from('group_exercises').delete().eq('group_id', gid).not('exercise', 'in', `(${keep})`));
+      check(
+        await supabase.from('group_exercises').upsert(
+          rows.map((r, i) => ({
+            group_id: gid,
+            exercise: r.exercise,
+            type: r.type,
+            goal: r.goal,
+            per_hand: r.per_hand,
+            distance: r.distance,
+            name: r.name,
+            position: i,
+          })),
+          { onConflict: 'group_id,exercise' },
+        ),
+      );
+    },
     onSuccess: refresh,
   });
   const regenerateCode = useMutation({
@@ -202,7 +289,7 @@ export function useGroupAdmin(groupId: string | undefined) {
       check(await supabase.from('group_members').delete().eq('group_id', gid).eq('user_id', userId)),
     onSuccess: refresh,
   });
-  return { updateGroup, regenerateCode, updateMember, removeMember };
+  return { updateGroup, saveExercises, regenerateCode, updateMember, removeMember };
 }
 
 // ---------------------------------------------------------------- kayıtlar
@@ -238,14 +325,16 @@ export function useMyEntries() {
 
 export function useMyStats() {
   const q = useMyEntries();
-  const stats = useMemo(() => computeStats(q.data ?? []), [q.data]);
-  return { ...q, stats };
+  const ch = useChallenge();
+  const stats = useMemo(() => computeStats(q.data ?? [], ch), [q.data, ch]);
+  return { ...q, stats, challenge: ch };
 }
 
 /** Grubun üyeleri, profilleri ve kayıtları + her biri için hesaplanmış istatistikler. */
-export function useGroupBoard(groupId: string | undefined) {
+export function useGroupBoard(ch: Challenge) {
   const uid = useUserId();
   const outbox = useOutbox();
+  const groupId = ch.groupId;
   const q = useQuery({
     queryKey: keys.group(groupId ?? ''),
     enabled: !!groupId,
@@ -271,17 +360,17 @@ export function useGroupBoard(groupId: string | undefined) {
       const own = m.user_id === uid ? applyOutbox(server, outbox.data ?? []) : server;
       return {
         id: m.user_id,
-        name: m.profiles?.name || 'İsimsiz',
+        name: m.profiles?.name || strings().common.noName,
         color: m.profiles?.color ?? '#C8F04A',
         bodyWeight: m.profiles?.body_weight ?? null,
         role: m.role as Player['role'],
         status: m.status as Player['status'],
         isMe: m.user_id === uid,
         entries: own,
-        stats: computeStats(own),
+        stats: computeStats(own, ch),
       };
     });
-  }, [q.data, uid, outbox.data]);
+  }, [q.data, uid, outbox.data, ch]);
 
   const active = players.filter((p) => p.status === 'active');
   const ranked = [...active].sort((a, b) => b.stats.pct - a.stats.pct || b.stats.done - a.stats.done);
@@ -289,7 +378,7 @@ export function useGroupBoard(groupId: string | undefined) {
 }
 
 export type EntryInput = {
-  exercise: ExerciseKey;
+  exercise: string;
   weight: number;
   reps: number;
   distance: number;

@@ -55,6 +55,47 @@ export type Database = {
           },
         ];
       };
+      group_exercises: {
+        Row: {
+          distance: number;
+          exercise: string;
+          goal: number;
+          group_id: string;
+          name: string | null;
+          per_hand: boolean;
+          position: number;
+          type: string;
+        };
+        Insert: {
+          distance?: number;
+          exercise: string;
+          goal: number;
+          group_id: string;
+          name?: string | null;
+          per_hand?: boolean;
+          position?: number;
+          type: string;
+        };
+        Update: {
+          distance?: number;
+          exercise?: string;
+          goal?: number;
+          group_id?: string;
+          name?: string | null;
+          per_hand?: boolean;
+          position?: number;
+          type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'group_exercises_group_id_fkey';
+            columns: ['group_id'];
+            isOneToOne: false;
+            referencedRelation: 'groups';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       group_members: {
         Row: {
           group_id: string;
@@ -102,6 +143,7 @@ export type Database = {
           invite_code: string;
           name: string;
           require_approval: boolean;
+          start_date: string;
         };
         Insert: {
           created_at?: string;
@@ -110,6 +152,7 @@ export type Database = {
           invite_code: string;
           name: string;
           require_approval?: boolean;
+          start_date?: string;
         };
         Update: {
           created_at?: string;
@@ -118,6 +161,7 @@ export type Database = {
           invite_code?: string;
           name?: string;
           require_approval?: boolean;
+          start_date?: string;
         };
         Relationships: [
           {
@@ -197,6 +241,7 @@ export type Database = {
           color: string;
           created_at: string;
           id: string;
+          locale: string;
           name: string;
           notify: Json;
           onboarded: boolean;
@@ -206,6 +251,7 @@ export type Database = {
           color?: string;
           created_at?: string;
           id: string;
+          locale?: string;
           name?: string;
           notify?: Json;
           onboarded?: boolean;
@@ -215,6 +261,7 @@ export type Database = {
           color?: string;
           created_at?: string;
           id?: string;
+          locale?: string;
           name?: string;
           notify?: Json;
           onboarded?: boolean;
@@ -228,7 +275,7 @@ export type Database = {
     Functions: {
       delete_account: { Args: never; Returns: undefined };
       create_group: {
-        Args: { p_name: string };
+        Args: { p_name: string; p_start?: string; p_exercises?: Json };
         Returns: {
           created_at: string;
           created_by: string | null;
@@ -236,6 +283,7 @@ export type Database = {
           invite_code: string;
           name: string;
           require_approval: boolean;
+          start_date: string;
         };
         SetofOptions: {
           from: '*';

@@ -6,17 +6,21 @@ import { Pressable, ScrollView, Share, View } from 'react-native';
 import { Icon } from '@/components/icon';
 import { Btn, Field, Pill, styles, Txt } from '@/components/ui';
 import { C } from '@/constants/theme';
-import { useActiveGroup, useCreateGroup, useJoinGroup, useLeaveGroup, useMemberships } from '@/lib/data';
+import { useStrings } from '@/i18n';
+import { formatDate } from '@/lib/challenge';
+import { useActiveGroup, useJoinGroup, useLeaveGroup, useMemberships } from '@/lib/data';
 
 export default function Groups() {
+  const t = useStrings();
+  const gt = t.groups;
   const memberships = useMemberships();
   const active = useActiveGroup();
   const join = useJoinGroup();
-  const create = useCreateGroup();
   const leave = useLeaveGroup();
   const [code, setCode] = useState('');
   const [newName, setNewName] = useState('');
   const [msg, setMsg] = useState('');
+  const [msgError, setMsgError] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
 
@@ -25,10 +29,10 @@ export default function Groups() {
   return (
     <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 28, gap: 14 }} keyboardShouldPersistTaps="handled">
       <Txt size={24} weight="extrabold">
-        Gruplar
+        {t.board.groups}
       </Txt>
       <Txt size={14} color={C.sub} style={{ marginTop: -8 }}>
-        Kayıtların tüm gruplarda ortak, her grubun kendi sıralaması var.
+        {gt.intro}
       </Txt>
 
       {(memberships.data ?? []).map((m) => {
@@ -58,10 +62,14 @@ export default function Groups() {
                 {m.group.name}
               </Txt>
               <Txt size={14} color={C.sub}>
-                {pending ? 'Onay bekleniyor' : m.role === 'admin' ? 'Yöneticisin' : 'Üyesin'}
+                {pending ? gt.pending : `${m.role === 'admin' ? gt.admin : gt.member} · ${formatDate(m.group.start_date)}`}
               </Txt>
             </View>
-            {pending ? <Pill bg={C.goldBg} fg={C.gold}>BEKLİYOR</Pill> : null}
+            {pending ? (
+              <Pill bg={C.goldBg} fg={C.gold}>
+                {t.exercise.pending}
+              </Pill>
+            ) : null}
             {on ? <Icon name="check" size={22} color={C.accent} stroke={3} /> : null}
           </Pressable>
         );
@@ -72,7 +80,7 @@ export default function Groups() {
           <View style={styles.rowBetween}>
             <View>
               <Txt size={14} color={C.sub}>
-                {g.name} davet kodu
+                {gt.inviteCode(g.name)}
               </Txt>
               <Txt size={28} weight="black" style={{ letterSpacing: 3 }}>
                 {g.invite_code}
@@ -84,7 +92,7 @@ export default function Groups() {
               kind="secondary"
               height={46}
               icon="copy"
-              title={copied ? 'Kopyalandı' : 'Kopyala'}
+              title={copied ? gt.copied : gt.copy}
               style={{ flex: 1, backgroundColor: C.surface3 }}
               onPress={async () => {
                 await Clipboard.setStringAsync(g.invite_code);
@@ -95,13 +103,9 @@ export default function Groups() {
               kind="secondary"
               height={46}
               icon="share"
-              title="Paylaş"
+              title={t.common.share}
               style={{ flex: 1, backgroundColor: C.surface3 }}
-              onPress={() =>
-                Share.share({
-                  message: `1 Yıl Meydan Okuması'nda "${g.name}" grubuna katıl! Uygulamayı açıp şu kodu gir: ${g.invite_code}`,
-                })
-              }
+              onPress={() => Share.share({ message: gt.shareMessage(g.name, g.invite_code) })}
             />
           </View>
         </View>
@@ -112,7 +116,7 @@ export default function Groups() {
           kind="secondary"
           height={50}
           icon="settings"
-          title="Grubu yönet"
+          title={t.profile.admin}
           onPress={() => {
             router.back();
             router.push('/group-admin');
@@ -122,16 +126,16 @@ export default function Groups() {
 
       <View style={{ gap: 10, marginTop: 6 }}>
         <Field
-          label="Davet koduyla katıl"
+          label={gt.joinLabel}
           value={code}
-          onChangeText={(t) => setCode(t.toUpperCase())}
+          onChangeText={(v) => setCode(v.toUpperCase())}
           autoCapitalize="characters"
           autoCorrect={false}
-          placeholder="ör. K7M2QX"
+          placeholder={gt.codePlaceholder}
           style={{ backgroundColor: C.surface2, letterSpacing: 2 }}
         />
         <Btn
-          title="Katıl"
+          title={gt.join}
           height={52}
           disabled={code.trim().length < 4}
           loading={join.isPending}
@@ -140,8 +144,10 @@ export default function Groups() {
             try {
               const r = await join.mutateAsync(code);
               setCode('');
-              setMsg(r.status === 'pending' ? `${r.name}: yönetici onayı bekleniyor.` : `${r.name} grubuna katıldın!`);
+              setMsgError(false);
+              setMsg(r.status === 'pending' ? gt.joinedPending(r.name) : gt.joined(r.name));
             } catch (e) {
+              setMsgError(true);
               setMsg((e as Error).message);
             }
           }}
@@ -150,34 +156,29 @@ export default function Groups() {
 
       <View style={{ gap: 10, marginTop: 6 }}>
         <Field
-          label="Yeni grup kur"
+          label={gt.createLabel}
           value={newName}
           onChangeText={setNewName}
           maxLength={40}
-          placeholder="Grup adı"
+          placeholder={gt.namePlaceholder}
           style={{ backgroundColor: C.surface2 }}
         />
         <Btn
           kind="secondary"
           height={52}
-          title="Grubu kur"
+          title={gt.createNext}
           disabled={!newName.trim()}
-          loading={create.isPending}
-          onPress={async () => {
-            setMsg('');
-            try {
-              const created = await create.mutateAsync(newName.trim());
-              setNewName('');
-              setMsg(`${created.name} kuruldu. Davet kodu: ${created.invite_code}`);
-            } catch (e) {
-              setMsg((e as Error).message);
-            }
+          onPress={() => {
+            const name = newName.trim();
+            setNewName('');
+            router.back();
+            router.push({ pathname: '/challenge', params: { newName: name } });
           }}
         />
       </View>
 
       {msg ? (
-        <Txt size={15} weight="semibold" color={msg.includes('bulunamadı') ? C.danger : C.accent}>
+        <Txt size={15} weight="semibold" color={msgError ? C.danger : C.accent}>
           {msg}
         </Txt>
       ) : null}
@@ -187,7 +188,7 @@ export default function Groups() {
           kind={confirmLeave ? 'primary' : 'danger'}
           height={50}
           style={[{ marginTop: 10 }, confirmLeave && { backgroundColor: C.dangerFill }]}
-          title={confirmLeave ? `Emin misin? ${g.name} grubundan ayrıl` : 'Bu gruptan ayrıl'}
+          title={confirmLeave ? gt.leaveConfirm(g.name) : gt.leave}
           loading={leave.isPending}
           onPress={async () => {
             if (!confirmLeave) {

@@ -4,12 +4,14 @@ import Animated, { FadeInUp, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { C } from '@/constants/theme';
+import { useStrings } from '@/i18n';
 import { useOutbox } from '@/lib/data';
 
 import { Txt } from './ui';
 
 /** İnternet yokken ya da gönderilmeyi bekleyen kayıt varken üstte küçük şerit. */
 export function OfflineBanner() {
+  const t = useStrings().offline;
   const insets = useSafeAreaInsets();
   const net = useNetInfo();
   const outbox = useOutbox();
@@ -17,11 +19,7 @@ export function OfflineBanner() {
   const offline = net.isConnected === false;
   if (!offline && pending === 0) return null;
 
-  const text = offline
-    ? pending
-      ? `Çevrimdışısın · ${pending} kayıt telefonda bekliyor`
-      : 'Çevrimdışısın · kayıtların telefonda saklanır'
-    : `${pending} kayıt gönderiliyor…`;
+  const text = offline ? (pending ? t.offlinePending(pending) : t.offline) : t.sending(pending);
 
   return (
     <View pointerEvents="none" style={{ position: 'absolute', top: insets.top + 4, left: 0, right: 0, alignItems: 'center' }}>

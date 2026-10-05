@@ -3,6 +3,8 @@ import * as Crypto from 'expo-crypto';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 
+import { strings } from '@/i18n';
+
 import { supabase } from './supabase';
 
 // Web'de açılan pencere geri döndüğünde oturumu tamamlar; telefonda etkisizdir.
@@ -27,7 +29,7 @@ export async function signInWithApple() {
     if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') return false;
     throw e;
   }
-  if (!credential.identityToken) throw new Error('Apple kimlik bilgisi gelmedi. Tekrar dene.');
+  if (!credential.identityToken) throw new Error(strings().auth.appleFailed);
 
   const { error } = await supabase.auth.signInWithIdToken({
     provider: 'apple',
@@ -68,7 +70,7 @@ export async function signInWithGoogle() {
     if (sessionError) throw sessionError;
     return true;
   }
-  throw new Error('Google girişi tamamlanamadı. Tekrar dene.');
+  throw new Error(strings().auth.googleFailed);
 }
 
 /** Hem ?sorgu hem #parça parametrelerini okur (özel şemalı adreslerde URL sınıfına güvenmeden). */

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "1 Yıl",
+    "name": "1 Year",
     "slug": "sportapp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -48,7 +48,42 @@
         }
       ],
       "expo-web-browser",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-localization",
+        {
+          "supportedLocales": {
+            "ios": [
+              "en",
+              "tr",
+              "ja",
+              "es",
+              "de"
+            ],
+            "android": [
+              "en",
+              "tr",
+              "ja",
+              "es",
+              "de"
+            ]
+          }
+        }
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "Allow tracking to see more relevant ads. The app works the same either way."
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511",
+          "delayAppMeasurementInit": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -60,6 +95,13 @@
       "eas": {
         "projectId": "5add212d-cad7-4673-8cd1-8825fdb1d3a8"
       }
+    },
+    "locales": {
+      "en": "./locales/en.json",
+      "tr": "./locales/tr.json",
+      "ja": "./locales/ja.json",
+      "es": "./locales/es.json",
+      "de": "./locales/de.json"
     }
   }
 }

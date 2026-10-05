@@ -5,14 +5,18 @@ import Svg, { Path } from 'react-native-svg';
 
 import { Txt } from '@/components/ui';
 import { C } from '@/constants/theme';
-import { EXERCISE_BY_KEY, type ExerciseKey } from '@/lib/challenge';
-import { GUIDES } from '@/lib/guide';
+import { useLang, useStrings } from '@/i18n';
+import { useChallenge } from '@/lib/data';
+import { guideFor } from '@/lib/guide';
 
 export default function GuideScreen() {
-  const { key } = useLocalSearchParams<{ key: ExerciseKey }>();
-  const ex = EXERCISE_BY_KEY[key];
-  const g = GUIDES[key];
-  if (!ex || !g) return null;
+  const t = useStrings().guide;
+  const lang = useLang();
+  const { key } = useLocalSearchParams<{ key: string }>();
+  const ch = useChallenge();
+  const ex = ch.byKey[key];
+  if (!ex) return null;
+  const { detailed: g, rule, video } = guideFor(ex, lang);
 
   return (
     <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 28, gap: 18 }}>
@@ -22,8 +26,8 @@ export default function GuideScreen() {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Form videolarını YouTube'da aç"
-        onPress={() => Linking.openURL(`https://www.youtube.com/results?search_query=${encodeURIComponent(g.video)}`)}
+        accessibilityLabel={t.videoA11y}
+        onPress={() => Linking.openURL(`https://www.youtube.com/results?search_query=${encodeURIComponent(video)}`)}
         style={({ pressed }) => ({
           height: 160,
           borderRadius: 22,
@@ -39,13 +43,14 @@ export default function GuideScreen() {
           </Svg>
         </View>
         <Txt size={14} weight="bold" color={C.sub}>
-          Form videolarını izle
+          {t.watch}
         </Txt>
       </Pressable>
 
+      {g ? (
       <View style={{ gap: 8 }}>
         <Txt size={14} weight="bold" color={C.sub}>
-          Çalışan kaslar
+          {t.muscles}
         </Txt>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {g.muscles.map((m) => (
@@ -57,7 +62,9 @@ export default function GuideScreen() {
           ))}
         </View>
       </View>
+      ) : null}
 
+      {g ? (
       <View style={{ gap: 14 }}>
         {g.steps.map((s, i) => (
           <Animated.View key={i} entering={FadeInDown.delay(120 + i * 60).duration(400)} style={{ flexDirection: 'row', gap: 12 }}>
@@ -73,9 +80,12 @@ export default function GuideScreen() {
         ))}
       </View>
 
+      ) : null}
+
+      {g ? (
       <View style={{ backgroundColor: C.goldBg, borderRadius: 18, padding: 16, gap: 10 }}>
         <Txt size={15} weight="extrabold" color={C.gold}>
-          Sık yapılan hatalar
+          {t.mistakes}
         </Txt>
         {g.mistakes.map((m) => (
           <View key={m} style={{ flexDirection: 'row', gap: 10 }}>
@@ -88,13 +98,14 @@ export default function GuideScreen() {
           </View>
         ))}
       </View>
+      ) : null}
 
       <View style={{ backgroundColor: C.surface2, borderRadius: 18, padding: 16 }}>
         <Txt size={15} style={{ lineHeight: 22 }}>
           <Txt size={15} weight="extrabold" color={C.accent}>
-            Sayılma kuralı:{' '}
+            {t.rule}{' '}
           </Txt>
-          {g.rule}
+          {rule}
         </Txt>
       </View>
     </ScrollView>

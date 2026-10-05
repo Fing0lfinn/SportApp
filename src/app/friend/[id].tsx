@@ -4,14 +4,16 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Avatar, Bar, Card, IconBtn, Loading, Screen, styles, Txt } from '@/components/ui';
 import { C } from '@/constants/theme';
-import { EXERCISES, fmt } from '@/lib/challenge';
-import { useActiveGroup, useGroupBoard, useMyStats } from '@/lib/data';
+import { getLang, useStrings } from '@/i18n';
+import { exStats, fmtShort, unitOf } from '@/lib/challenge';
+import { useGroupBoard, useMyStats } from '@/lib/data';
 
 export default function Friend() {
+  const t = useStrings();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { group } = useActiveGroup();
-  const board = useGroupBoard(group?.id);
   const mine = useMyStats();
+  const ch = mine.challenge;
+  const board = useGroupBoard(ch);
   const friend = board.active.find((p) => p.id === id);
   const me = board.active.find((p) => p.isMe);
 
@@ -21,9 +23,9 @@ export default function Friend() {
 
   let a = 0;
   let b = 0;
-  const rows = EXERCISES.map((ex) => {
-    const x = mine.stats.byExercise[ex.key].best;
-    const y = friend.stats.byExercise[ex.key].best;
+  const rows = ch.exercises.map((ex) => {
+    const x = exStats(mine.stats, ex.key).best;
+    const y = exStats(friend.stats, ex.key).best;
     if (x > y) a++;
     else if (y > x) b++;
     return { ex, x, y };
@@ -31,7 +33,7 @@ export default function Friend() {
 
   return (
     <Screen bottom={40}>
-      <IconBtn name="back" label="Geri" onPress={() => router.back()} />
+      <IconBtn name="back" label={t.common.back} onPress={() => router.back()} />
       <View style={styles.row}>
         <Avatar name={friend.name} color={friend.color} size={68} />
         <View style={{ flex: 1 }}>
@@ -39,7 +41,7 @@ export default function Friend() {
             {friend.name}
           </Txt>
           <Txt size={16} color={C.sub}>
-            {rank}. sırada · %{friend.stats.pct} · {friend.stats.done}/9 hedef
+            {t.friend.summary(rank, friend.stats.pct, friend.stats.done, ch.exercises.length)}
           </Txt>
         </View>
       </View>
@@ -47,32 +49,32 @@ export default function Friend() {
       <Card style={{ borderRadius: 28, padding: 20, gap: 18 }}>
         <View style={[styles.row, { justifyContent: 'center', gap: 18 }]}>
           <Txt size={15} weight="extrabold" color={myColor}>
-            SEN
+            {t.friend.you}
           </Txt>
           <Txt size={44} weight="extrabold" style={{ lineHeight: 50 }}>
             {a} – {b}
           </Txt>
           <Txt size={15} weight="extrabold" color={friend.color}>
-            {friend.name.toLocaleUpperCase('tr-TR')}
+            {friend.name.toLocaleUpperCase(getLang())}
           </Txt>
         </View>
         {rows.map(({ ex, x, y }, i) => {
           const meLead = x >= y;
           const themLead = y >= x;
-          const unit = ex.unit === 'kg' ? ' kg' : '';
+          const unit = (v: number) => (ex.type === 'reps' ? '' : ` ${unitOf(ex, v)}`.trimEnd());
           return (
             <Animated.View key={ex.key} entering={FadeInDown.delay(120 + i * 45).duration(400)} style={{ gap: 6 }}>
               <View style={styles.rowBetween}>
                 <Txt size={17} weight="extrabold" color={meLead ? C.text : C.muted} style={{ minWidth: 64 }}>
-                  {fmt(x)}
-                  {unit}
+                  {fmtShort(ex, x)}
+                  {unit(x)}
                 </Txt>
                 <Txt size={14} weight="semibold" color={C.sub} style={{ textAlign: 'center', flexShrink: 1 }}>
                   {ex.name}
                 </Txt>
                 <Txt size={17} weight="extrabold" color={themLead ? C.text : C.muted} style={{ minWidth: 64, textAlign: 'right' }}>
-                  {fmt(y)}
-                  {unit}
+                  {fmtShort(ex, y)}
+                  {unit(y)}
                 </Txt>
               </View>
               <View style={{ flexDirection: 'row', gap: 6 }}>

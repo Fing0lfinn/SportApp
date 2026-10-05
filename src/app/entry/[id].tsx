@@ -5,8 +5,9 @@ import { ScrollView } from 'react-native';
 import { EntryForm, type FormValue } from '@/components/entry-form';
 import { Btn, Loading, Txt } from '@/components/ui';
 import { C } from '@/constants/theme';
-import { EXERCISE_BY_KEY, formatDay, type ExerciseKey } from '@/lib/challenge';
-import { useDeleteEntry, useMyEntries, useUpdateEntry } from '@/lib/data';
+import { useStrings } from '@/i18n';
+import { formatDay, type Entry } from '@/lib/challenge';
+import { useChallenge, useDeleteEntry, useMyEntries, useUpdateEntry } from '@/lib/data';
 
 export default function EditEntry() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -16,25 +17,29 @@ export default function EditEntry() {
   return <Editor key={entry.id} entry={entry} />;
 }
 
-function Editor({ entry }: { entry: NonNullable<ReturnType<typeof useMyEntries>['data']>[number] }) {
-  const ex = EXERCISE_BY_KEY[entry.exercise as ExerciseKey];
+function Editor({ entry }: { entry: Entry }) {
+  const t = useStrings();
+  const ch = useChallenge();
+  const ex = ch.byKey[entry.exercise];
   const update = useUpdateEntry();
   const remove = useDeleteEntry();
   const [value, setValue] = useState<FormValue>({
     weight: Number(entry.weight),
     reps: entry.reps,
-    distance: entry.distance || 20,
+    distance: entry.distance || ex?.distance || 20,
   });
   const [confirm, setConfirm] = useState(false);
+
+  if (!ex) return <Loading />;
 
   return (
     <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 28, gap: 16 }}>
       <Txt size={24} weight="extrabold">
-        Kaydı düzenle
+        {t.editEntry.title}
       </Txt>
       <Txt size={16} color={C.sub} style={{ marginTop: -8 }}>
         {ex.name} · {formatDay(entry.performed_on)}
-        {entry.is_start ? ' · başlangıç' : ''}
+        {entry.is_start ? ` · ${t.editEntry.start}` : ''}
       </Txt>
       <EntryForm ex={ex} value={value} onChange={setValue} />
       {update.error || remove.error ? (
@@ -43,7 +48,7 @@ function Editor({ entry }: { entry: NonNullable<ReturnType<typeof useMyEntries>[
         </Txt>
       ) : null}
       <Btn
-        title="Değişiklikleri kaydet"
+        title={t.editEntry.save}
         loading={update.isPending}
         onPress={async () => {
           await update.mutateAsync({ id: entry.id, ...value });
@@ -53,7 +58,7 @@ function Editor({ entry }: { entry: NonNullable<ReturnType<typeof useMyEntries>[
       <Btn
         kind={confirm ? 'primary' : 'danger'}
         style={confirm ? { backgroundColor: C.dangerFill } : undefined}
-        title={confirm ? 'Emin misin? Evet, sil' : 'Kaydı sil'}
+        title={confirm ? t.editEntry.confirmDelete : t.editEntry.delete}
         loading={remove.isPending}
         onPress={async () => {
           if (!confirm) {

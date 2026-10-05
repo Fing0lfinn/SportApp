@@ -1,78 +1,47 @@
 // Meydan okumanın kuralları ve tüm hesaplar (ilerleme, ara hedefler, XP, seri).
-// Sunucuda sadece ham kayıtlar tutulur; her şey buradan türetilir.
+// Her grubun kendi başlangıç tarihi ve hareket listesi var; sunucuda sadece ham kayıtlar tutulur.
 
-export type ExerciseKey =
-  | 'squat'
-  | 'deadlift'
-  | 'bench'
-  | 'ohp'
-  | 'pushup'
-  | 'pullup'
-  | 'bulgarian'
-  | 'farmer'
-  | 'row';
+import { strings, type Lang } from '@/i18n';
 
-/** weight: kg × tekrar, reps: tek sette tekrar, carry: her elde kg + mesafe */
-export type ExerciseType = 'weight' | 'reps' | 'carry';
+import { CATALOG_BY_KEY, catalogName, defaultStep, DEFAULT_KEYS, type ExerciseType } from './catalog';
+
+export type { ExerciseType };
 
 export type Exercise = {
-  key: ExerciseKey;
+  key: string;
   name: string;
+  /** Ad + "her el", "20 m" gibi ek bilgi */
   label: string;
-  goal: number;
-  unit: 'kg' | 'tekrar';
   type: ExerciseType;
+  goal: number;
   step: number;
-  perHand?: boolean;
+  perHand: boolean;
+  /** carry: sayılması için gereken en az mesafe (m) */
+  distance: number;
+  custom: boolean;
 };
 
-export const EXERCISES: Exercise[] = [
-  { key: 'squat', name: 'Squat', label: 'Squat', goal: 120, unit: 'kg', type: 'weight', step: 2.5 },
-  { key: 'deadlift', name: 'Deadlift', label: 'Deadlift', goal: 160, unit: 'kg', type: 'weight', step: 2.5 },
-  { key: 'bench', name: 'Bench Press', label: 'Bench Press', goal: 80, unit: 'kg', type: 'weight', step: 2.5 },
-  { key: 'ohp', name: 'Overhead Press', label: 'Overhead Press', goal: 60, unit: 'kg', type: 'weight', step: 2.5 },
-  { key: 'pushup', name: 'Şınav', label: 'Şınav', goal: 20, unit: 'tekrar', type: 'reps', step: 1 },
-  { key: 'pullup', name: 'Barfiks', label: 'Barfiks', goal: 8, unit: 'tekrar', type: 'reps', step: 1 },
-  {
-    key: 'bulgarian',
-    name: 'Bulgarian Split Squat',
-    label: 'Bulgarian Split Squat · her el',
-    goal: 20,
-    unit: 'kg',
-    type: 'weight',
-    step: 2,
-    perHand: true,
-  },
-  {
-    key: 'farmer',
-    name: "Farmer's Walk",
-    label: "Farmer's Walk · her el, 20 m",
-    goal: 50,
-    unit: 'kg',
-    type: 'carry',
-    step: 2,
-    perHand: true,
-  },
-  { key: 'row', name: 'Bent Over Row', label: 'Bent Over Row', goal: 80, unit: 'kg', type: 'weight', step: 2.5 },
-];
+export type Challenge = {
+  groupId: string | null;
+  start: string;
+  exercises: Exercise[];
+  byKey: Record<string, Exercise>;
+};
 
-export const EXERCISE_BY_KEY = Object.fromEntries(EXERCISES.map((e) => [e.key, e])) as Record<
-  ExerciseKey,
-  Exercise
->;
+/** Sunucudaki group_exercises satırı */
+export type ExerciseRow = {
+  exercise: string;
+  type: string;
+  goal: number;
+  per_hand: boolean;
+  distance: number;
+  name: string | null;
+  position: number;
+};
 
-export const FARMER_DISTANCE = 20;
-export const CHALLENGE_START = '2026-10-04';
-export const CHALLENGE_END = '2027-10-04';
 export const TOTAL_DAYS = 365;
 
-export const LEVELS = [
-  { name: 'Çaylak', xp: 0 },
-  { name: 'Demir', xp: 500 },
-  { name: 'Çelik', xp: 2000 },
-  { name: 'Titan', xp: 5000 },
-  { name: 'Efsane', xp: 9000 },
-];
+export const LEVEL_XP = [0, 500, 2000, 5000, 9000];
 
 export const XP = { start: 100, entry: 10, record: 50, milestone: 100, goal: 300 } as const;
 
@@ -91,23 +60,51 @@ export type Entry = {
   pending?: boolean;
 };
 
-// ---------------------------------------------------------------- tarih
+// ---------------------------------------------------------------- meydan okuma
 
-const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-const MONTHS_LONG = [
-  'Ocak',
-  'Şubat',
-  'Mart',
-  'Nisan',
-  'Mayıs',
-  'Haziran',
-  'Temmuz',
-  'Ağustos',
-  'Eylül',
-  'Ekim',
-  'Kasım',
-  'Aralık',
-];
+export function toExercise(row: ExerciseRow, lang: Lang): Exercise {
+  const type = (['weight', 'reps', 'carry', 'time'].includes(row.type) ? row.type : 'weight') as ExerciseType;
+  const cat = CATALOG_BY_KEY[row.exercise];
+  const name = row.name?.trim() || catalogName(row.exercise, lang);
+  const s = strings();
+  let label = name;
+  if (row.per_hand) label += ` · ${s.units.perHand}`;
+  if (type === 'carry' && row.distance) label += `${row.per_hand ? ',' : ' ·'} ${row.distance} m`;
+  return {
+    key: row.exercise,
+    name,
+    label,
+    type,
+    goal: Number(row.goal),
+    step: cat && !row.name ? cat.step : defaultStep(type, row.per_hand),
+    perHand: row.per_hand,
+    distance: Number(row.distance) || 0,
+    custom: !cat || !!row.name,
+  };
+}
+
+export function buildChallenge(groupId: string | null, start: string, rows: ExerciseRow[], lang: Lang): Challenge {
+  const exercises = [...rows].sort((a, b) => a.position - b.position).map((r) => toExercise(r, lang));
+  return { groupId, start, exercises, byKey: Object.fromEntries(exercises.map((e) => [e.key, e])) };
+}
+
+/** Katalogdaki bir hareketin varsayılan satırı */
+export function catalogRow(key: string, position = 0): ExerciseRow {
+  const c = CATALOG_BY_KEY[key];
+  return {
+    exercise: key,
+    type: c.type,
+    goal: c.goal,
+    per_hand: !!c.perHand,
+    distance: c.distance ?? 0,
+    name: null,
+    position,
+  };
+}
+
+export const DEFAULT_ROWS: ExerciseRow[] = DEFAULT_KEYS.map(catalogRow);
+
+// ---------------------------------------------------------------- tarih
 
 function utcDays(iso: string) {
   const [y, m, d] = iso.split('-').map(Number);
@@ -122,62 +119,107 @@ export function todayISO(now = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
-/** Başlangıçtan bu yana geçen gün (4 Ekim = 0) */
-export function dayIndex(iso: string) {
-  return utcDays(iso) - utcDays(CHALLENGE_START);
+/** Başlangıçtan bu yana geçen gün (başlangıç günü = 0) */
+export function dayIndex(iso: string, start: string) {
+  return utcDays(iso) - utcDays(start);
 }
 
-export function todayIndex() {
-  return Math.max(0, Math.min(TOTAL_DAYS, dayIndex(todayISO())));
+export function todayIndex(start: string) {
+  return Math.max(0, Math.min(TOTAL_DAYS, dayIndex(todayISO(), start)));
 }
 
-export function daysLeft() {
-  return Math.max(0, TOTAL_DAYS - dayIndex(todayISO()));
+/** Henüz başlamadıysa başlamasına kalan gün */
+export function daysUntilStart(start: string) {
+  return Math.max(0, -dayIndex(todayISO(), start));
+}
+
+export function daysLeft(start: string) {
+  return Math.max(0, Math.min(TOTAL_DAYS, TOTAL_DAYS - dayIndex(todayISO(), start)));
+}
+
+export function dateFromIndex(idx: number, start: string) {
+  const d = new Date((utcDays(start) + idx) * 86400000);
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+export function isoFromIndex(idx: number, start: string) {
+  return todayISO(dateFromIndex(idx, start));
+}
+
+export function endISO(start: string) {
+  return isoFromIndex(TOTAL_DAYS, start);
 }
 
 export function formatDay(iso: string) {
   const [, m, d] = iso.split('-').map(Number);
-  return `${d} ${MONTHS[m - 1]}`;
+  return strings().dates.day(d, m - 1);
+}
+
+export function formatDate(iso: string) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return strings().dates.full(d, m - 1, y);
 }
 
 export function formatMonthYear(date: Date) {
-  return `${MONTHS_LONG[date.getMonth()]} ${date.getFullYear()}`;
-}
-
-export function dateFromIndex(idx: number) {
-  const ms = (utcDays(CHALLENGE_START) + idx) * 86400000;
-  const d = new Date(ms);
-  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  return strings().dates.monthYear(date.getMonth(), date.getFullYear());
 }
 
 // ---------------------------------------------------------------- sayılar
 
 export function fmt(v: number) {
-  return String(Math.round(v * 100) / 100).replace('.', ',');
+  const s = String(Math.round(v * 100) / 100);
+  return strings().decimalComma ? s.replace('.', ',') : s;
+}
+
+export function fmtTime(sec: number) {
+  const s = Math.round(sec);
+  if (s < 60) return `${s} ${strings().units.sec}`;
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** Hedef ya da değer, birimiyle: "120 kg", "20 tekrar", "1:30" */
+export function fmtValue(ex: Exercise, v: number) {
+  if (ex.type === 'reps') return `${fmt(v)} ${strings().units.reps}`;
+  if (ex.type === 'time') return fmtTime(v);
+  return `${fmt(v)} kg`;
+}
+
+/** Birimsiz kısa değer (grafik ve kartlarda; birim yanında ayrıca yazılır) */
+export function fmtShort(ex: Exercise, v: number) {
+  return ex.type === 'time' && v >= 60 ? fmtTime(v) : fmt(v);
+}
+
+export function unitOf(ex: Exercise, v = 0) {
+  if (ex.type === 'reps') return strings().units.reps;
+  if (ex.type === 'time') return v >= 60 ? '' : strings().units.sec;
+  return 'kg';
 }
 
 export function epley(weight: number, reps: number) {
   return reps <= 1 ? weight : Math.round(weight * (1 + reps / 30));
 }
 
-/** Hedefe sayılan değer. Farmer's walk 20 m'nin altındaysa sayılmaz. */
+/** Hedefe sayılan değer. Taşımada mesafe yetmezse sayılmaz. */
 export function valueOf(ex: Exercise, e: Pick<Entry, 'weight' | 'reps' | 'distance'>) {
-  if (ex.type === 'reps') return e.reps;
-  if (ex.type === 'carry') return e.distance >= FARMER_DISTANCE ? e.weight : 0;
+  if (ex.type === 'reps' || ex.type === 'time') return e.reps;
+  if (ex.type === 'carry') return e.distance >= ex.distance ? e.weight : 0;
   return e.reps >= 1 ? e.weight : 0;
 }
 
 export function entryText(ex: Exercise, e: Pick<Entry, 'weight' | 'reps' | 'distance'>) {
-  if (ex.type === 'reps') return `${e.reps} tekrar`;
+  if (ex.type === 'reps') return `${e.reps} ${strings().units.reps}`;
+  if (ex.type === 'time') return fmtTime(e.reps);
   if (ex.type === 'carry') return `${fmt(e.weight)} kg · ${e.distance} m`;
   return `${fmt(e.weight)} kg × ${e.reps}`;
 }
 
 export function entrySub(ex: Exercise, e: Pick<Entry, 'weight' | 'reps' | 'distance' | 'is_start'>) {
-  if (e.is_start) return 'Başlangıç ölçümü';
-  if (ex.type === 'reps') return 'Tek set';
-  if (ex.type === 'carry') return e.distance >= FARMER_DISTANCE ? 'Her elde' : '20 m altında, sayılmaz';
-  return `${ex.perHand ? 'Her elde · ' : ''}Tahmini maks ${fmt(epley(e.weight, e.reps))} kg`;
+  const s = strings().entry;
+  if (e.is_start) return s.start;
+  if (ex.type === 'reps') return s.singleSet;
+  if (ex.type === 'time') return s.held;
+  if (ex.type === 'carry') return e.distance >= ex.distance ? s.perHand : s.tooShort(ex.distance);
+  return `${ex.perHand ? `${s.perHand} · ` : ''}${s.estMax(fmt(epley(e.weight, e.reps)))}`;
 }
 
 /** Başlangıçtan hedefe 4 eşit durak, hareketin adımına yuvarlanmış. */
@@ -205,11 +247,12 @@ export type ExerciseStats = {
   hasData: boolean;
   milestones: number[];
   milestonesDone: number;
+  /** İlki başlangıç değeri (başlamadan önceki son kayıt ya da dönemin ilk kaydı) */
   sorted: Entry[];
 };
 
 export type UserStats = {
-  byExercise: Record<ExerciseKey, ExerciseStats>;
+  byExercise: Record<string, ExerciseStats>;
   events: Record<string, EntryEvent>;
   entries: number;
   records: number;
@@ -217,8 +260,7 @@ export type UserStats = {
   goalsAfterStart: number;
   xp: number;
   level: number;
-  levelName: string;
-  nextLevel: { name: string; xp: number } | null;
+  nextLevelXp: number | null;
   levelProgress: number;
   streak: number;
   maxStreak: number;
@@ -235,8 +277,15 @@ function sortEntries(a: Entry, b: Entry) {
   );
 }
 
-export function computeStats(all: Entry[], today = todayIndex()): UserStats {
-  const byExercise = {} as Record<ExerciseKey, ExerciseStats>;
+const EMPTY_STATS: ExerciseStats = { best: 0, start: 0, hasData: false, milestones: [], milestonesDone: 0, sorted: [] };
+
+/** Bir hareketin istatistiği; grupta olmayan hareket için boş döner. */
+export function exStats(stats: UserStats, key: string) {
+  return stats.byExercise[key] ?? EMPTY_STATS;
+}
+
+export function computeStats(all: Entry[], ch: Challenge, today = todayIndex(ch.start)): UserStats {
+  const byExercise: Record<string, ExerciseStats> = {};
   const events: Record<string, EntryEvent> = {};
   const weeks = new Set<number>();
   const days = new Set<string>();
@@ -246,13 +295,21 @@ export function computeStats(all: Entry[], today = todayIndex()): UserStats {
   let goalsAfterStart = 0;
   let hasStart = false;
 
-  for (const ex of EXERCISES) {
-    const sorted = all.filter((e) => e.exercise === ex.key).sort(sortEntries);
+  for (const ex of ch.exercises) {
+    const mine = all.filter((e) => e.exercise === ex.key).sort(sortEntries);
+    const before = mine.filter((e) => dayIndex(e.performed_on, ch.start) < 0);
+    const during = mine.filter((e) => {
+      const d = dayIndex(e.performed_on, ch.start);
+      return d >= 0 && d < TOTAL_DAYS;
+    });
+    // Başlamadan önceki son kayıt başlangıç değeri sayılır; yoksa dönemin ilk kaydı.
+    const sorted = before.length ? [before[before.length - 1], ...during] : during;
     const start = sorted.length ? valueOf(ex, sorted[0]) : 0;
     const ms = milestones(ex, start);
     let best = start;
     sorted.forEach((e, i) => {
-      weeks.add(Math.floor(dayIndex(e.performed_on) / 7));
+      const d = dayIndex(e.performed_on, ch.start);
+      if (d >= 0) weeks.add(Math.floor(d / 7));
       if (i === 0) {
         if (e.is_start) hasStart = true;
         return;
@@ -297,10 +354,10 @@ export function computeStats(all: Entry[], today = todayIndex()): UserStats {
   let xp = hasStart ? XP.start : 0;
   for (const id in events) xp += events[id].xp;
   let level = 0;
-  LEVELS.forEach((l, i) => {
-    if (xp >= l.xp) level = i;
+  LEVEL_XP.forEach((need, i) => {
+    if (xp >= need) level = i;
   });
-  const next = LEVELS[level + 1] ?? null;
+  const next = LEVEL_XP[level + 1] ?? null;
 
   const currentWeek = Math.floor(today / 7);
   let w = weeks.has(currentWeek) ? currentWeek : currentWeek - 1;
@@ -316,7 +373,10 @@ export function computeStats(all: Entry[], today = todayIndex()): UserStats {
     maxStreak = Math.max(maxStreak, run);
   }
 
-  const { pct, done } = progressOf(EXERCISES.map((ex) => byExercise[ex.key].best));
+  const { pct, done } = progressOf(
+    ch.exercises.map((ex) => byExercise[ex.key].best),
+    ch.exercises,
+  );
 
   return {
     byExercise,
@@ -327,9 +387,8 @@ export function computeStats(all: Entry[], today = todayIndex()): UserStats {
     goalsAfterStart,
     xp,
     level,
-    levelName: LEVELS[level].name,
-    nextLevel: next,
-    levelProgress: next ? (xp - LEVELS[level].xp) / (next.xp - LEVELS[level].xp) : 1,
+    nextLevelXp: next,
+    levelProgress: next ? (xp - LEVEL_XP[level]) / (next - LEVEL_XP[level]) : 1,
     streak,
     maxStreak,
     pct,
@@ -338,21 +397,29 @@ export function computeStats(all: Entry[], today = todayIndex()): UserStats {
   };
 }
 
-/** Genel puan: 9 hedefteki ilerlemenin ortalaması (her biri en fazla %100). */
-export function progressOf(bests: number[]) {
+/** Genel puan: hedeflerdeki ilerlemenin ortalaması (her biri en fazla %100). */
+export function progressOf(bests: number[], exercises: Exercise[]) {
+  if (!exercises.length) return { pct: 0, done: 0 };
   let sum = 0;
   let done = 0;
   bests.forEach((v, i) => {
-    const q = Math.min(1, v / EXERCISES[i].goal);
+    const q = Math.min(1, v / exercises[i].goal);
     sum += q;
     if (q >= 1) done++;
   });
-  return { pct: Math.round((sum / EXERCISES.length) * 100), done };
+  return { pct: Math.round((sum / exercises.length) * 100), done };
 }
 
-/** (Squat + Deadlift + Bench) ÷ vücut ağırlığı */
-export function strengthRatio(stats: UserStats, bodyWeight: number | null | undefined) {
-  if (!bodyWeight) return null;
-  const b = stats.byExercise;
-  return (b.squat.best + b.deadlift.best + b.bench.best) / bodyWeight;
+/** Kilo oranında kullanılan hareketler (grupta varsa): squat, deadlift, bench */
+export const RATIO_KEYS = ['squat', 'deadlift', 'bench'];
+
+export function ratioKeys(ch: Challenge) {
+  return RATIO_KEYS.filter((k) => ch.byKey[k]);
+}
+
+/** (Squat + Deadlift + Bench) ÷ vücut ağırlığı; grupta bu hareketler yoksa null */
+export function strengthRatio(stats: UserStats, bodyWeight: number | null | undefined, ch: Challenge) {
+  const keys = ratioKeys(ch);
+  if (!bodyWeight || !keys.length) return null;
+  return keys.reduce((sum, k) => sum + exStats(stats, k).best, 0) / bodyWeight;
 }

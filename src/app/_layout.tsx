@@ -17,15 +17,19 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 
-import { C } from '@/constants/theme';
-import { AuthProvider, useAuth } from '@/lib/auth';
 import { OfflineBanner } from '@/components/offline-banner';
-import { useMyEntries, useProfile, useSyncOutbox } from '@/lib/data';
+import { C } from '@/constants/theme';
+import { useLang, useLangLoaded } from '@/i18n';
+import { initAds } from '@/lib/ads';
+import { AuthProvider, useAuth, useUserId } from '@/lib/auth';
+import { useChallenge, useMyEntries, useProfile, useSyncOutbox, useUpdateProfile } from '@/lib/data';
 import { configureNotifications, registerForPush, syncLocalNotifications } from '@/lib/notifications';
+import { initPro, setProUser, usePro } from '@/lib/pro';
 import { supabase } from '@/lib/supabase';
 
 SplashScreen.preventAutoHideAsync();
 configureNotifications();
+initPro();
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 
@@ -58,6 +62,8 @@ const sheet = {
 };
 
 export default function RootLayout() {
+  const lang = useLang();
+  const langLoaded = useLangLoaded();
   const [fontsLoaded] = useFonts({
     Figtree_400Regular,
     Figtree_500Medium,
@@ -68,11 +74,12 @@ export default function RootLayout() {
   });
 
   return (
-    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: WEEK, buster: 'v3' }}>
+    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: WEEK, buster: 'v4' }}>
       <AuthProvider>
         <ThemeProvider value={theme}>
           <StatusBar style="light" />
-          <RootStack fontsLoaded={fontsLoaded} />
+          {/* Dil değişince tüm ekranlar yeni dille yeniden kurulur */}
+          <RootStack key={lang} fontsLoaded={fontsLoaded && langLoaded} />
         </ThemeProvider>
       </AuthProvider>
     </PersistQueryClientProvider>
@@ -93,6 +100,8 @@ function RootStack({ fontsLoaded }: { fontsLoaded: boolean }) {
   useLiveUpdates(signedIn);
   useOutboxSync(signedIn);
   useNotificationSetup(signedIn && onboarded);
+  useLocaleSync(signedIn);
+  useMonetization(signedIn, signedIn && onboarded);
 
   if (!ready) return null;
 
@@ -124,9 +133,13 @@ function RootStack({ fontsLoaded }: { fontsLoaded: boolean }) {
         <Stack.Screen name="month" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="group-admin" />
+        <Stack.Screen name="challenge" />
+        <Stack.Screen name="pro" options={sheet} />
         <Stack.Screen name="wrapped" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
         <Stack.Screen name="final" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack.Protected>
+      {/* Girişten önce de açılabilir; ilk ekran olmasın diye en sonda */}
+      <Stack.Screen name="language" options={sheet} />
     </Stack>
     {signedIn && onboarded ? <OfflineBanner /> : null}
     </>
@@ -151,6 +164,9 @@ function useLiveUpdates(enabled: boolean) {
         qc.invalidateQueries({ queryKey: ['group'] });
         qc.invalidateQueries({ queryKey: ['memberships'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_exercises' }, () => {
+        qc.invalidateQueries({ queryKey: ['memberships'] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -161,6 +177,7 @@ function useLiveUpdates(enabled: boolean) {
 /** Giriş yapılınca: push jetonunu kaydet, hatırlatmaları kur, bildirime dokununca ilgili ekrana git. */
 function useNotificationSetup(enabled: boolean) {
   const entries = useMyEntries();
+  const ch = useChallenge();
   const loaded = entries.isSuccess;
 
   useEffect(() => {
@@ -170,8 +187,8 @@ function useNotificationSetup(enabled: boolean) {
 
   useEffect(() => {
     if (!enabled || !loaded || Platform.OS === 'web') return;
-    syncLocalNotifications(entries.data ?? []).catch(() => {});
-  }, [enabled, loaded, entries.data]);
+    syncLocalNotifications(entries.data ?? [], ch).catch(() => {});
+  }, [enabled, loaded, entries.data, ch]);
 
   useEffect(() => {
     if (!enabled || Platform.OS === 'web') return;
@@ -182,6 +199,33 @@ function useNotificationSetup(enabled: boolean) {
     });
     return () => sub.remove();
   }, [enabled]);
+}
+
+/** Arkadaş bildirimleri telefonun dilinde gelsin: seçili dili profile yaz. */
+function useLocaleSync(enabled: boolean) {
+  const lang = useLang();
+  const profile = useProfile();
+  const update = useUpdateProfile();
+  const current = profile.data?.locale;
+  useEffect(() => {
+    if (enabled && current && current !== lang) update.mutate({ locale: lang });
+    // update her render'da yeni nesne; sadece dil ya da profil değişince çalışsın
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, current, lang]);
+}
+
+/** Pro hesaba bağlanır; Pro değilse kurulumdan sonra reklamlar başlar. */
+function useMonetization(signedIn: boolean, onboarded: boolean) {
+  const uid = useUserId();
+  const pro = usePro();
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    setProUser(signedIn ? uid : null);
+  }, [signedIn, uid]);
+  useEffect(() => {
+    if (Platform.OS === 'web' || !onboarded || !pro.ready || pro.isPro) return;
+    initAds();
+  }, [onboarded, pro.ready, pro.isPro]);
 }
 
 /** Bekleyen kayıtları açılışta, internet gelince ve uygulamaya dönünce gönder. */

@@ -5,10 +5,12 @@ import Animated, { ZoomIn } from 'react-native-reanimated';
 
 import { Chips, Stepper, Txt } from '@/components/ui';
 import { C } from '@/constants/theme';
+import { useStrings } from '@/i18n';
 import { fmt } from '@/lib/challenge';
 import { loadBar, plateSummary } from '@/lib/plates';
 
 export default function Plates() {
+  const t = useStrings().plates;
   const params = useLocalSearchParams<{ weight?: string }>();
   const [total, setTotal] = useState(() => Math.max(20, Number(params.weight) || 100));
   const [bar, setBar] = useState<'20' | '15'>('20');
@@ -18,19 +20,19 @@ export default function Plates() {
   return (
     <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 28, gap: 16 }}>
       <Txt size={24} weight="extrabold">
-        Plaka hesaplayıcı
+        {t.title}
       </Txt>
       <Stepper
-        title="Toplam ağırlık"
-        sub="kg · bar dahil"
+        title={t.total}
+        sub={t.totalSub}
         value={fmt(total)}
         onDec={() => setTotal(Math.max(barKg, total - 2.5))}
         onInc={() => setTotal(Math.min(400, total + 2.5))}
       />
       <Chips
         items={[
-          { key: '20', label: '20 kg bar' },
-          { key: '15', label: '15 kg bar' },
+          { key: '20', label: t.bar(20) },
+          { key: '15', label: t.bar(15) },
         ]}
         value={bar}
         onChange={(b) => {
@@ -41,7 +43,7 @@ export default function Plates() {
 
       <View
         accessible
-        accessibilityLabel={`Her tarafa ${plateSummary(plates) || 'plaka yok'}`}
+        accessibilityLabel={t.a11y(plateSummary(plates) || t.none)}
         style={{ height: 180, backgroundColor: C.surface2, borderRadius: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         <View style={{ position: 'absolute', left: 14, right: 14, height: 10, borderRadius: 5, backgroundColor: '#5A616C' }} />
         <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 2 }}>
@@ -67,15 +69,13 @@ export default function Plates() {
 
       <View style={{ gap: 4 }}>
         <Txt size={14} color={C.sub}>
-          Her iki tarafa
+          {t.eachSide}
         </Txt>
         <Txt size={26} weight="black">
-          {plates.length ? plateSummary(plates) : 'Sadece bar'}
+          {plates.length ? plateSummary(plates) : t.barOnly}
         </Txt>
         <Txt size={14} color={C.sub}>
-          {exact
-            ? `Bar ${barKg} kg, her tarafa ${fmt(perSide)} kg.`
-            : `Tam denk gelmiyor, en yakın ${fmt(loaded)} kg yüklenebilir.`}
+          {exact ? t.exact(barKg, fmt(perSide)) : t.inexact(fmt(loaded))}
         </Txt>
       </View>
     </ScrollView>

@@ -26,7 +26,8 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 
-import { C, F } from '@/constants/theme';
+import { C, F, font } from '@/constants/theme';
+import { strings } from '@/i18n';
 
 import { Icon, type IconName } from './icon';
 
@@ -53,7 +54,7 @@ export function Txt({
   return (
     <Text
       numberOfLines={numberOfLines}
-      style={[{ fontFamily: F[weight], fontSize: size, color, lineHeight: Math.round(size * 1.3) }, style]}>
+      style={[{ ...font(weight), fontSize: size, color, lineHeight: Math.round(size * 1.3) }, style]}>
       {children}
     </Text>
   );
@@ -320,14 +321,14 @@ export function Stepper({
         {right}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <IconBtn name="minus" label={`${title} azalt`} onPress={onDec} size={big ? 56 : 48} bg={C.surface3} />
+        <IconBtn name="minus" label={strings().ui.dec(title)} onPress={onDec} size={big ? 56 : 48} bg={C.surface3} />
         <Txt
           size={big ? 52 : 32}
           weight="extrabold"
           style={{ minWidth: big ? 130 : 88, textAlign: 'center', lineHeight: big ? 60 : 40 }}>
           {value}
         </Txt>
-        <IconBtn name="plus" label={`${title} artır`} onPress={onInc} size={big ? 56 : 48} bg={C.surface3} />
+        <IconBtn name="plus" label={strings().ui.inc(title)} onPress={onInc} size={big ? 56 : 48} bg={C.surface3} />
       </View>
     </View>
   );
@@ -485,7 +486,15 @@ export function Ring({
 }
 
 /** Değere kadar sayan rakam. */
-export function CountUp({ to, style, prefix = '' }: { to: number; style?: StyleProp<TextStyle>; prefix?: string }) {
+export function CountUp({
+  to,
+  style,
+  format = String,
+}: {
+  to: number;
+  style?: StyleProp<TextStyle>;
+  format?: (n: number) => string;
+}) {
   const [n, setN] = useState(0);
   useEffect(() => {
     let raf = 0;
@@ -500,10 +509,7 @@ export function CountUp({ to, style, prefix = '' }: { to: number; style?: StyleP
     return () => cancelAnimationFrame(raf);
   }, [to]);
   return (
-    <Text style={style}>
-      {prefix}
-      {n}
-    </Text>
+    <Text style={style}>{format(n)}</Text>
   );
 }
 

@@ -1,3 +1,5 @@
+import { fmt } from './challenge';
+
 export type Plate = { kg: number; color: string; height: number; width: number };
 
 export const PLATES: Plate[] = [
@@ -29,6 +31,6 @@ export function plateSummary(plates: Plate[]) {
   const counts = new Map<number, number>();
   plates.forEach((p) => counts.set(p.kg, (counts.get(p.kg) ?? 0) + 1));
   return [...counts.entries()]
-    .map(([kg, n]) => `${n > 1 ? `${n} × ` : ''}${String(kg).replace('.', ',')}`)
+    .map(([kg, n]) => `${n > 1 ? `${n} × ` : ''}${fmt(kg)}`)
     .join(' + ');
 }

@@ -5,20 +5,17 @@ import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { C } from '@/constants/theme';
+import { useStrings } from '@/i18n';
 
 import { Icon, type IconName } from './icon';
 import { EASE, Txt } from './ui';
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
-const META: Record<string, { label: string; icon: IconName }> = {
-  index: { label: 'Pano', icon: 'home' },
-  board: { label: 'Sıralama', icon: 'board' },
-  feed: { label: 'Akış', icon: 'feed' },
-  profile: { label: 'Profil', icon: 'user' },
-};
+const ICONS: Record<string, IconName> = { index: 'home', board: 'board', feed: 'feed', profile: 'user' };
 
 export function TabBar({ state, navigation, insets }: TabBarProps) {
+  const t = useStrings().tabs;
   const [width, setWidth] = useState(0);
   const tabW = width ? (width - 24) / state.routes.length : 0;
   const x = useSharedValue(0);
@@ -36,7 +33,10 @@ export function TabBar({ state, navigation, insets }: TabBarProps) {
       ) : null}
       {state.routes.map((route, i) => {
         const focused = state.index === i;
-        const meta = META[route.name] ?? { label: route.name, icon: 'home' };
+        const meta = {
+          label: t[route.name as keyof typeof t] ?? route.name,
+          icon: ICONS[route.name] ?? 'home',
+        };
         const color = focused ? C.accent : C.sub;
         return (
           <Pressable

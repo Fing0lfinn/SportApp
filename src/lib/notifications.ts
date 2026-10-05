@@ -4,7 +4,9 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { dateFromIndex, dayIndex, todayIndex, todayISO, type Entry } from './challenge';
+import { strings } from '@/i18n';
+
+import { dateFromIndex, dayIndex, todayIndex, todayISO, TOTAL_DAYS, type Challenge, type Entry } from './challenge';
 import { supabase } from './supabase';
 
 // Telefonun kendi kurduğu bildirimler (sunucu gerekmez):
@@ -17,11 +19,11 @@ const PREFS_KEY = 'notif:local';
 const TOKEN_KEY = 'notif:pushToken';
 
 const MILESTONES = [
-  { id: 'm-100', day: 100, title: '100. gün!', body: 'Meydan okumanın 100. günü. Bakalım ne kadar ilerledin?' },
-  { id: 'm-half', day: 182, title: 'Yarı yoldayız', body: 'Yılın yarısı bitti. Hedeflerine ne kadar kaldı, bir göz at.' },
-  { id: 'm-30', day: 335, title: 'Son 30 gün', body: 'Final 30 gün sonra. Son düzlüğe girdik!' },
-  { id: 'm-final', day: 365, title: 'Bugün final günü!', body: 'Akşam 20:00 sıralama belli oluyor.' },
-];
+  { id: 'm-100', day: 100, key: 'day100' },
+  { id: 'm-half', day: 182, key: 'half' },
+  { id: 'm-30', day: 335, key: 'last30' },
+  { id: 'm-final', day: 365, key: 'final' },
+] as const;
 
 const isWeb = Platform.OS === 'web';
 
@@ -37,7 +39,7 @@ export function configureNotifications() {
   });
   if (Platform.OS === 'android') {
     Notifications.setNotificationChannelAsync('default', {
-      name: 'Genel',
+      name: strings().notif.channel,
       importance: Notifications.AndroidImportance.HIGH,
       lightColor: '#C8F04A',
     }).catch(() => {});
@@ -49,9 +51,9 @@ export async function getLocalPrefs(): Promise<LocalPrefs> {
   return { weekly: true, milestones: true, ...(raw ? JSON.parse(raw) : {}) };
 }
 
-export async function setLocalPrefs(prefs: LocalPrefs, entries: Entry[]) {
+export async function setLocalPrefs(prefs: LocalPrefs, entries: Entry[], ch: Challenge) {
   await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
-  await syncLocalNotifications(entries);
+  await syncLocalNotifications(entries, ch);
 }
 
 export async function hasPermission() {
@@ -70,22 +72,25 @@ export async function askPermission() {
 }
 
 /** Haftalık hatırlatmayı ve kilometre taşlarını kayıtlara göre yeniden kurar. */
-export async function syncLocalNotifications(entries: Entry[]) {
+export async function syncLocalNotifications(entries: Entry[], ch: Challenge) {
   if (isWeb || !(await hasPermission())) return;
   const prefs = await getLocalPrefs();
+  const t = strings().notif;
 
   await Notifications.cancelScheduledNotificationAsync('weekly').catch(() => {});
   if (prefs.weekly) {
-    const today = todayIndex();
+    const today = todayIndex(ch.start);
     const week = Math.floor(today / 7);
-    const loggedThisWeek = entries.some((e) => !e.is_start && Math.floor(dayIndex(e.performed_on) / 7) === week);
-    // Meydan okuma haftası pazar başlar; son günü cumartesi.
-    let target = reminderTime(week * 7 + 6);
-    if (loggedThisWeek || target.getTime() <= Date.now()) target = reminderTime((week + 1) * 7 + 6);
-    if (dayIndex(todayISO(target)) <= 365) {
+    const loggedThisWeek = entries.some(
+      (e) => !e.is_start && Math.floor(dayIndex(e.performed_on, ch.start) / 7) === week,
+    );
+    // Meydan okuma haftası başlangıç gününde başlar; hatırlatma haftanın son günü.
+    let target = reminderTime(week * 7 + 6, ch.start);
+    if (loggedThisWeek || target.getTime() <= Date.now()) target = reminderTime((week + 1) * 7 + 6, ch.start);
+    if (dayIndex(todayISO(target), ch.start) <= TOTAL_DAYS) {
       await Notifications.scheduleNotificationAsync({
         identifier: 'weekly',
-        content: { title: 'Seri bozulmasın!', body: 'Bu hafta henüz kayıt girmedin. Salondan sonra eklemeyi unutma.' },
+        content: { title: t.weeklyTitle, body: t.weeklyBody },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: target },
       });
     }
@@ -93,20 +98,20 @@ export async function syncLocalNotifications(entries: Entry[]) {
 
   for (const m of MILESTONES) {
     await Notifications.cancelScheduledNotificationAsync(m.id).catch(() => {});
-    const at = dateFromIndex(m.day);
-    at.setHours(m.day === 365 ? 10 : 12, 0, 0, 0);
+    const at = dateFromIndex(m.day, ch.start);
+    at.setHours(m.day === TOTAL_DAYS ? 10 : 12, 0, 0, 0);
     if (prefs.milestones && at.getTime() > Date.now()) {
       await Notifications.scheduleNotificationAsync({
         identifier: m.id,
-        content: { title: m.title, body: m.body },
+        content: { title: t.milestones[m.key].title, body: t.milestones[m.key].body },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at },
       });
     }
   }
 }
 
-function reminderTime(day: number) {
-  const d = dateFromIndex(day);
+function reminderTime(day: number, start: string) {
+  const d = dateFromIndex(day, start);
   d.setHours(20, 0, 0, 0);
   return d;
 }
@@ -144,12 +149,6 @@ export async function forgetPushToken() {
   if (!isWeb) await Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
 }
 
-export const PUSH_STATUS_TEXT: Record<PushStatus, string> = {
-  ok: 'Bu telefon arkadaş bildirimlerini alıyor.',
-  denied: 'Bildirim izni kapalı. Telefon ayarlarından açabilirsin.',
-  simulator: 'Arkadaş bildirimleri sadece gerçek telefonda çalışır.',
-  'expo-go-android':
-    "Android'de Expo Go uzak bildirim almıyor. Uygulamanın kendi derlemesi kurulunca açılacak.",
-  'no-project': 'Uygulama henüz EAS projesine bağlanmadı (eas init). Bağlanınca arkadaş bildirimleri açılır.',
-  error: 'Bildirim kaydı yapılamadı. Biraz sonra tekrar dene.',
-};
+export function pushStatusText(status: PushStatus) {
+  return strings().notif.status[status];
+}

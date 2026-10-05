@@ -1,6 +1,8 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, use, useEffect, useState, type PropsWithChildren } from 'react';
 
+import { strings } from '@/i18n';
+
 import { supabase } from './supabase';
 
 type AuthState = { session: Session | null; loading: boolean };
@@ -33,13 +35,14 @@ export function useUserId() {
 
 /** Supabase hata mesajlarını Türkçeleştirir. */
 export function authErrorText(message: string) {
+  const t = strings().auth;
   const m = message.toLowerCase();
-  if (m.includes('invalid login credentials')) return 'E-posta ya da şifre hatalı.';
-  if (m.includes('already registered')) return 'Bu e-posta ile zaten bir hesap var. Giriş yapmayı dene.';
-  if (m.includes('password should be at least')) return 'Şifre en az 6 karakter olmalı.';
-  if (m.includes('email not confirmed')) return 'E-postanı henüz onaylamadın. Gelen kutunu kontrol et.';
-  if (m.includes('unable to validate email') || m.includes('invalid format')) return 'Geçerli bir e-posta gir.';
-  if (m.includes('rate limit')) return 'Çok fazla deneme yapıldı. Biraz bekleyip tekrar dene.';
-  if (m.includes('network')) return 'İnternet bağlantısı yok gibi görünüyor.';
+  if (m.includes('invalid login credentials')) return t.invalidLogin;
+  if (m.includes('already registered')) return t.alreadyRegistered;
+  if (m.includes('password should be at least')) return t.shortPassword;
+  if (m.includes('email not confirmed')) return t.notConfirmed;
+  if (m.includes('unable to validate email') || m.includes('invalid format')) return t.invalidEmail;
+  if (m.includes('rate limit')) return t.rateLimit;
+  if (m.includes('network')) return t.network;
   return message;
 }

@@ -7,11 +7,15 @@ import { Icon } from '@/components/icon';
 import { ToggleRow } from '@/components/toggle-row';
 import { Avatar, Btn, Empty, Field, IconBtn, Pill, Screen, styles, Txt } from '@/components/ui';
 import { C } from '@/constants/theme';
-import { useActiveGroup, useGroupAdmin, useGroupBoard, type Player } from '@/lib/data';
+import { useStrings } from '@/i18n';
+import { useActiveGroup, useChallenge, useGroupAdmin, useGroupBoard, type Player } from '@/lib/data';
 
 export default function GroupAdmin() {
+  const t = useStrings();
+  const a = t.admin;
   const { group, isAdmin } = useActiveGroup();
-  const board = useGroupBoard(group?.id);
+  const ch = useChallenge();
+  const board = useGroupBoard(ch);
   const admin = useGroupAdmin(group?.id);
   const [name, setName] = useState(group?.name ?? '');
   const [confirm, setConfirm] = useState<string | null>(null);
@@ -20,8 +24,8 @@ export default function GroupAdmin() {
   if (!group || !isAdmin) {
     return (
       <Screen>
-        <IconBtn name="back" label="Geri" onPress={() => router.back()} />
-        <Empty title="Yönetici değilsin" text="Bu grubu sadece yöneticileri düzenleyebilir." />
+        <IconBtn name="back" label={t.common.back} onPress={() => router.back()} />
+        <Empty title={a.notAdminTitle} text={a.notAdminText} />
       </Screen>
     );
   }
@@ -38,25 +42,33 @@ export default function GroupAdmin() {
 
   return (
     <Screen bottom={40} gap={14}>
-      <IconBtn name="back" label="Geri" onPress={() => router.back()} />
+      <IconBtn name="back" label={t.common.back} onPress={() => router.back()} />
       <Txt size={32} weight="extrabold">
-        Grubu yönet
+        {t.profile.admin}
       </Txt>
 
-      <Field label="Grup adı" value={name} onChangeText={setName} maxLength={40} />
+      <Field label={a.groupName} value={name} onChangeText={setName} maxLength={40} />
       {name.trim() && name.trim() !== group.name ? (
         <Btn
-          title="Adı kaydet"
+          title={a.saveName}
           height={50}
           loading={admin.updateGroup.isPending}
-          onPress={() => run(() => admin.updateGroup.mutateAsync({ name: name.trim() }), 'Grup adı güncellendi.')}
+          onPress={() => run(() => admin.updateGroup.mutateAsync({ name: name.trim() }), a.nameSaved)}
         />
       ) : null}
+
+      <Btn
+        kind="secondary"
+        height={50}
+        icon="target"
+        title={t.profile.challenge}
+        onPress={() => router.push('/challenge')}
+      />
 
       <View style={[styles.rowBetween, { backgroundColor: C.surface, borderRadius: 18, padding: 16 }]}>
         <View>
           <Txt size={13} color={C.sub}>
-            Davet kodu
+            {a.inviteCode}
           </Txt>
           <Txt size={24} weight="black" style={{ letterSpacing: 3 }}>
             {group.invite_code}
@@ -65,17 +77,19 @@ export default function GroupAdmin() {
         <Btn
           kind="secondary"
           height={42}
-          title="Yenile"
+          title={a.regenerate}
           loading={admin.regenerateCode.isPending}
-          onPress={() => run(() => admin.regenerateCode.mutateAsync(), 'Yeni kod oluştu, eskisi artık geçersiz.')}
+          onPress={() => run(() => admin.regenerateCode.mutateAsync(), a.regenerated)}
         />
       </View>
 
       <ToggleRow
-        title="Yeni üyeleri onayla"
-        sub="Kapalıysa kodu bilen herkes direkt katılır"
+        title={a.approval}
+        sub={a.approvalSub}
         value={group.require_approval}
-        onChange={(v) => run(() => admin.updateGroup.mutateAsync({ require_approval: v }), v ? 'Artık katılımlar onayına düşecek.' : 'Kodla gelen direkt katılacak.')}
+        onChange={(v) =>
+          run(() => admin.updateGroup.mutateAsync({ require_approval: v }), v ? a.approvalOn : a.approvalOff)
+        }
       />
 
       {msg ? (
@@ -87,7 +101,7 @@ export default function GroupAdmin() {
       {board.pending.length ? (
         <View style={{ gap: 10 }}>
           <Txt size={18} weight="extrabold" style={{ marginTop: 8 }}>
-            Katılma istekleri
+            {a.requests}
           </Txt>
           {board.pending.map((p) => (
             <View key={p.id} style={[styles.row, { backgroundColor: C.surface, borderRadius: 18, padding: 12 }]}>
@@ -97,15 +111,17 @@ export default function GroupAdmin() {
               </Txt>
               <IconBtn
                 name="close"
-                label={`${p.name} isteğini reddet`}
+                label={a.reject(p.name)}
                 bg={C.surface3}
                 size={40}
-                onPress={() => run(() => admin.removeMember.mutateAsync(p.id), 'İstek reddedildi.')}
+                onPress={() => run(() => admin.removeMember.mutateAsync(p.id), a.rejected)}
               />
               <Btn
-                title="Onayla"
+                title={a.approve}
                 height={40}
-                onPress={() => run(() => admin.updateMember.mutateAsync({ userId: p.id, status: 'active' }), `${p.name} gruba katıldı.`)}
+                onPress={() =>
+                  run(() => admin.updateMember.mutateAsync({ userId: p.id, status: 'active' }), a.approved(p.name))
+                }
               />
             </View>
           ))}
@@ -113,7 +129,7 @@ export default function GroupAdmin() {
       ) : null}
 
       <Txt size={18} weight="extrabold" style={{ marginTop: 8 }}>
-        Üyeler · {board.active.length}
+        {a.members(board.active.length)}
       </Txt>
       {board.active.map((p, i) => (
         <MemberRow
@@ -124,7 +140,7 @@ export default function GroupAdmin() {
           onRole={() =>
             run(
               () => admin.updateMember.mutateAsync({ userId: p.id, role: p.role === 'admin' ? 'member' : 'admin' }),
-              p.role === 'admin' ? `${p.name} artık üye.` : `${p.name} artık yönetici.`,
+              p.role === 'admin' ? a.nowMember(p.name) : a.nowAdmin(p.name),
             )
           }
           onRemove={() => {
@@ -133,7 +149,7 @@ export default function GroupAdmin() {
               return;
             }
             setConfirm(null);
-            run(() => admin.removeMember.mutateAsync(p.id), `${p.name} gruptan çıkarıldı.`);
+            run(() => admin.removeMember.mutateAsync(p.id), a.removed(p.name));
           }}
         />
       ))}
@@ -154,27 +170,29 @@ function MemberRow({
   onRole: () => void;
   onRemove: () => void;
 }) {
+  const t = useStrings();
+  const a = t.admin;
   return (
     <Animated.View entering={FadeInDown.delay(60 + i * 40).duration(400)} style={{ backgroundColor: C.surface, borderRadius: 18, padding: 14, gap: 12 }}>
       <View style={styles.row}>
         <Avatar name={p.name} color={p.color} size={40} />
         <Txt size={16} weight="bold" style={{ flex: 1 }} numberOfLines={1}>
-          {p.isMe ? `${p.name} (sen)` : p.name}
+          {p.isMe ? t.board.meName(p.name) : p.name}
         </Txt>
         {p.role === 'admin' ? (
           <Pill bg={C.goldBg} fg={C.gold}>
-            YÖNETİCİ
+            {a.adminPill}
           </Pill>
         ) : null}
       </View>
       {!p.isMe ? (
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <Btn kind="secondary" height={42} style={{ flex: 1, backgroundColor: C.surface2 }} title={p.role === 'admin' ? 'Yöneticilikten al' : 'Yönetici yap'} onPress={onRole} />
+          <Btn kind="secondary" height={42} style={{ flex: 1, backgroundColor: C.surface2 }} title={p.role === 'admin' ? a.demote : a.promote} onPress={onRole} />
           <Btn
             kind={confirming ? 'primary' : 'danger'}
             height={42}
             style={[{ flex: 1 }, confirming ? { backgroundColor: C.dangerFill } : { backgroundColor: C.surface2 }]}
-            title={confirming ? 'Emin misin?' : 'Çıkar'}
+            title={confirming ? a.sure : a.remove}
             onPress={onRemove}
           />
         </View>
@@ -182,7 +200,7 @@ function MemberRow({
         <View style={[styles.row, { gap: 6 }]}>
           <Icon name="check" size={16} color={C.sub} />
           <Txt size={13} color={C.sub}>
-            Kendi rolünü değiştiremezsin.
+            {a.ownRole}
           </Txt>
         </View>
       )}

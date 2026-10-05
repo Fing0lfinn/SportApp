@@ -7,7 +7,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Confetti } from '@/components/confetti';
 import { Avatar, Btn, Empty, IconBtn, Loading, styles, Txt } from '@/components/ui';
 import { C } from '@/constants/theme';
-import { useActiveGroup, useGroupBoard } from '@/lib/data';
+import { useStrings } from '@/i18n';
+import { endISO, formatDate } from '@/lib/challenge';
+import { useActiveGroup, useChallenge, useGroupBoard } from '@/lib/data';
 import { countdown, isFinalOver } from '@/lib/final';
 
 type Step = 'countdown' | 'third' | 'second' | 'champion' | 'table';
@@ -15,37 +17,40 @@ const NEXT: Partial<Record<Step, Step>> = { third: 'second', second: 'champion',
 const DELAY: Partial<Record<Step, number>> = { third: 2800, second: 2800, champion: 4500 };
 
 export default function Final() {
+  const t = useStrings();
+  const f = t.final;
   const insets = useSafeAreaInsets();
   const { group } = useActiveGroup();
-  const board = useGroupBoard(group?.id);
+  const ch = useChallenge();
+  const board = useGroupBoard(ch);
   const [step, setStep] = useState<Step>('countdown');
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
     const next = NEXT[step];
     if (!next) return;
-    const t = setTimeout(() => setStep(next), DELAY[step]);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setStep(next), DELAY[step]);
+    return () => clearTimeout(timer);
   }, [step]);
 
   if (!group) {
     return (
       <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 16, paddingHorizontal: 20, gap: 20 }}>
-        <IconBtn name="back" label="Geri" onPress={() => router.back()} />
-        <Empty title="Final bir grupla anlamlı" text="Sıralamanın açıklanması için bir gruba katıl." />
+        <IconBtn name="back" label={t.common.back} onPress={() => router.back()} />
+        <Empty title={f.noGroupTitle} text={f.noGroupText} />
       </View>
     );
   }
   if (board.isLoading) return <Loading />;
 
   const ranked = board.ranked;
-  const over = isFinalOver(now);
-  const cd = countdown(now);
+  const over = isFinalOver(ch.start, now);
+  const cd = countdown(ch.start, now);
   const leader = ranked[0];
   // Sıralamada 3'ten az kişi varsa olmayan basamağı atla
   const start: Step = ranked.length >= 3 ? 'third' : ranked.length === 2 ? 'second' : 'champion';
@@ -59,24 +64,24 @@ export default function Final() {
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 80, paddingBottom: insets.bottom + 28, paddingHorizontal: 24, gap: 20 }}>
           <Animated.View entering={FadeIn.delay(100)}>
             <Txt size={14} weight="black" color={C.accent} style={{ letterSpacing: 1.5 }}>
-              {over ? 'FİNAL GELDİ' : 'FİNAL GÜNÜ'}
+              {over ? f.arrived : f.day}
             </Txt>
           </Animated.View>
           <Animated.View entering={ZoomIn.delay(150).duration(600)}>
             <Txt size={46} weight="black" style={{ lineHeight: 50 }}>
-              4 Ekim 2027
+              {formatDate(endISO(ch.start))}
             </Txt>
             <Txt size={30} weight="black" color={C.sub}>
-              saat 20:00
+              {f.at}
             </Txt>
           </Animated.View>
           {!over ? (
             <Animated.View entering={FadeInDown.delay(350)} style={{ flexDirection: 'row', gap: 8 }}>
               {[
-                { v: cd.days, l: 'gün' },
-                { v: cd.hours, l: 'saat' },
-                { v: cd.minutes, l: 'dakika' },
-                { v: cd.seconds, l: 'saniye' },
+                { v: cd.days, l: f.days },
+                { v: cd.hours, l: f.hours },
+                { v: cd.minutes, l: f.minutes },
+                { v: cd.seconds, l: f.seconds },
               ].map((x) => (
                 <View key={x.l} style={{ flex: 1, backgroundColor: C.surface, borderRadius: 20, paddingVertical: 16, alignItems: 'center' }}>
                   <Txt size={30} weight="black">
@@ -91,9 +96,7 @@ export default function Final() {
           ) : null}
           <Animated.View entering={FadeInDown.delay(500)}>
             <Txt size={16} color={C.sub} style={{ lineHeight: 23 }}>
-              {over
-                ? 'Meydan okuma bitti. Sıralama tek tek açıklanıyor, sonra herkesin yıl özeti çıkıyor.'
-                : 'Final ekranı gruptaki herkes için aynı anda açılır: sıralama tek tek açıklanır, şampiyon ilan edilir.'}
+              {over ? f.overText : f.beforeText}
             </Txt>
           </Animated.View>
           {leader ? (
@@ -101,17 +104,17 @@ export default function Final() {
               <Avatar name={leader.name} color={leader.color} />
               <View style={{ flex: 1 }}>
                 <Txt size={13} color={C.sub}>
-                  {over ? 'Şampiyon belli' : 'Şu an lider'}
+                  {over ? f.championKnown : f.leaderNow}
                 </Txt>
                 <Txt size={17} weight="extrabold">
-                  {over ? 'Açıklamak için dokun' : `${leader.isMe ? 'Sen' : leader.name} · %${leader.stats.pct}`}
+                  {over ? f.tapToReveal : `${leader.isMe ? t.common.you : leader.name} · ${t.pct(leader.stats.pct)}`}
                 </Txt>
               </View>
             </Animated.View>
           ) : null}
           <View style={{ flex: 1 }} />
           <Animated.View entering={FadeInDown.delay(800)}>
-            <Btn title={over ? 'Sonuçları aç' : 'Önizlemeyi oynat'} onPress={() => setStep(start)} />
+            <Btn title={over ? f.openResults : f.playPreview} onPress={() => setStep(start)} />
           </Animated.View>
         </ScrollView>
       ) : null}
@@ -121,7 +124,7 @@ export default function Final() {
           {step === 'champion' ? <Confetti /> : null}
           <Animated.View entering={FadeIn.duration(400)}>
             <Txt size={step === 'champion' ? 20 : 18} weight="black" color={step === 'champion' ? C.gold : C.sub} style={{ letterSpacing: 2 }}>
-              {step === 'champion' ? 'ŞAMPİYON' : `${place + 1}. SIRA`}
+              {step === 'champion' ? f.champion : f.place(place + 1)}
             </Txt>
           </Animated.View>
           <Animated.View
@@ -131,16 +134,16 @@ export default function Final() {
           </Animated.View>
           <Animated.View entering={FadeInDown.delay(900)}>
             <Txt size={step === 'champion' ? 52 : 44} weight="black" style={{ textAlign: 'center' }}>
-              {revealed.isMe ? 'Sen!' : revealed.name}
+              {revealed.isMe ? f.youExcl : revealed.name}
             </Txt>
           </Animated.View>
           <Animated.View entering={FadeInDown.delay(1100)}>
             <Txt size={18} weight="bold" color={C.sub}>
-              %{revealed.stats.pct} · {revealed.stats.done}/9 hedef
+              {t.pct(revealed.stats.pct)} · {t.home.goalsDone(revealed.stats.done, ch.exercises.length)}
             </Txt>
           </Animated.View>
           <View style={{ position: 'absolute', bottom: insets.bottom + 28 }}>
-            <Btn kind="secondary" height={44} title="Atla" onPress={() => setStep('table')} />
+            <Btn kind="secondary" height={44} title={f.skip} onPress={() => setStep('table')} />
           </View>
         </View>
       ) : null}
@@ -149,7 +152,7 @@ export default function Final() {
         <ScrollView contentContainerStyle={{ paddingTop: insets.top + 70, paddingBottom: insets.bottom + 28, paddingHorizontal: 20, gap: 10 }}>
           <Animated.View entering={FadeInDown}>
             <Txt size={32} weight="black" style={{ marginBottom: 8 }}>
-              {over ? 'Final sıralaması' : 'Şu anki sıralama'}
+              {over ? f.finalTable : f.currentTable}
             </Txt>
           </Animated.View>
           {ranked.map((p, i) => (
@@ -163,26 +166,26 @@ export default function Final() {
               <Avatar name={p.name} color={p.color} />
               <View style={{ flex: 1 }}>
                 <Txt size={17} weight="bold" numberOfLines={1}>
-                  {p.isMe ? `${p.name} (sen)` : p.name}
+                  {p.isMe ? t.board.meName(p.name) : p.name}
                 </Txt>
                 <Txt size={14} color={C.sub}>
-                  {p.stats.done} / 9 hedef
+                  {t.home.goalsDone(p.stats.done, ch.exercises.length)}
                 </Txt>
               </View>
               <Txt size={24} weight="black">
-                %{p.stats.pct}
+                {t.pct(p.stats.pct)}
               </Txt>
             </Animated.View>
           ))}
           <View style={{ height: 12 }} />
-          <Btn title="Yıl özetini aç" onPress={() => router.replace('/wrapped')} />
-          <Btn kind="secondary" title="Kapat" onPress={() => router.back()} />
+          <Btn title={f.openWrapped} onPress={() => router.replace('/wrapped')} />
+          <Btn kind="secondary" title={t.common.close} onPress={() => router.back()} />
         </ScrollView>
       ) : null}
 
       {step === 'countdown' || step === 'table' ? (
         <View style={{ position: 'absolute', top: insets.top + 12, right: 16 }}>
-          <IconBtn name="close" label="Kapat" onPress={() => router.back()} />
+          <IconBtn name="close" label={t.common.close} onPress={() => router.back()} />
         </View>
       ) : null}
     </View>

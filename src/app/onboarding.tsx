@@ -4,16 +4,47 @@ import Animated, { FadeIn, FadeInDown, FadeInRight, ZoomIn } from 'react-native-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Polygon } from 'react-native-svg';
 
+import { ExerciseListEditor, StartDatePicker } from '@/components/challenge-editor';
 import { Avatar, Bar, Btn, Field, Stepper, Txt } from '@/components/ui';
 import { AVATAR_COLORS, C } from '@/constants/theme';
+import { useStrings, type Dict } from '@/i18n';
 import { useAuth } from '@/lib/auth';
-import { EXERCISES, fmt, progressOf, todayISO } from '@/lib/challenge';
-import { useAddEntries, useCreateGroup, useJoinGroup, useMyEntries, useUpdateProfile } from '@/lib/data';
+import {
+  DEFAULT_ROWS,
+  exStats,
+  fmtShort,
+  fmtValue,
+  progressOf,
+  todayISO,
+  XP,
+  type Exercise,
+  type ExerciseRow,
+} from '@/lib/challenge';
+import { useAddEntries, useCreateGroup, useJoinGroup, useMyStats, useUpdateProfile } from '@/lib/data';
+import { usePro } from '@/lib/pro';
 import { providerName } from '@/lib/social-auth';
 
-const DEFAULT_START = [60, 80, 50, 30, 15, 3, 8, 20, 50];
+/** Başlangıç testinde ilk gösterilen tahmini değer */
+const START_GUESS: Record<string, number> = {
+  squat: 60,
+  deadlift: 80,
+  bench: 50,
+  ohp: 30,
+  pushup: 15,
+  pullup: 3,
+  bulgarian: 8,
+  farmer: 20,
+  row: 50,
+};
+
+function guess(ex: Exercise) {
+  if (START_GUESS[ex.key] !== undefined && !ex.custom) return START_GUESS[ex.key];
+  return Math.max(ex.step, Math.round((ex.goal * 0.5) / ex.step) * ex.step);
+}
 
 export default function Onboarding() {
+  const t = useStrings();
+  const o = t.onboarding;
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const [step, setStep] = useState(0);
@@ -21,17 +52,25 @@ export default function Onboarding() {
   const [name, setName] = useState(() => providerName(session?.user.user_metadata));
   const [color, setColor] = useState<string>(AVATAR_COLORS[0]);
   const [bw, setBw] = useState(80);
-  const [start, setStart] = useState(DEFAULT_START);
+  const [values, setValues] = useState<Record<string, number>>({});
   const [ex, setEx] = useState(0);
   const [error, setError] = useState('');
 
-  const myEntries = useMyEntries();
+  const mine = useMyStats();
+  const ch = mine.challenge;
   const addEntries = useAddEntries();
   const updateProfile = useUpdateProfile();
 
+  // Başlangıç değeri olmayan hareketler sorulur
+  const todo = ch.exercises.filter((e) => !exStats(mine.stats, e.key).hasData);
+  const cur = todo.length ? todo[Math.min(ex, todo.length - 1)] : undefined;
+  const valueFor = (e: Exercise) => values[e.key] ?? guess(e);
+  const setValue = (e: Exercise, v: number) =>
+    setValues({ ...values, [e.key]: Math.max(0, Math.round(v * 100) / 100) });
+
   const saveProfileAndNext = async () => {
     if (!name.trim()) {
-      setError('Arkadaşların seni tanısın diye bir isim gir.');
+      setError(o.nameRequired);
       return;
     }
     setError('');
@@ -40,27 +79,39 @@ export default function Onboarding() {
   };
 
   const finishTest = async () => {
-    const hasStart = (myEntries.data ?? []).some((e) => e.is_start);
-    if (!hasStart) {
+    if (todo.length) {
       const day = todayISO();
       await addEntries.mutateAsync(
-        EXERCISES.map((e, i) => ({
-          exercise: e.key,
-          weight: e.type === 'reps' ? 0 : start[i],
-          reps: e.type === 'reps' ? start[i] : 1,
-          distance: e.type === 'carry' ? 20 : 0,
-          performed_on: day,
-          is_start: true,
-        })),
+        todo.map((e) => {
+          const v = valueFor(e);
+          const count = e.type === 'reps' || e.type === 'time';
+          return {
+            exercise: e.key,
+            weight: count ? 0 : v,
+            reps: count ? v : 1,
+            distance: e.type === 'carry' ? e.distance : 0,
+            performed_on: day,
+            is_start: true,
+          };
+        }),
       );
     }
     setStep(3);
   };
 
   const finish = () => updateProfile.mutate({ onboarded: true });
+  const pct = progressOf(
+    ch.exercises.map((e) => {
+      const st = exStats(mine.stats, e.key);
+      return st.hasData ? st.best : valueFor(e);
+    }),
+    ch.exercises,
+  ).pct;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: C.bg }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
@@ -69,32 +120,37 @@ export default function Onboarding() {
           paddingBottom: insets.bottom + 24,
           paddingHorizontal: 24,
         }}>
-        {step < 3 ? <Progress step={step} ex={ex} /> : null}
+        {step < 3 ? <Progress step={step} part={todo.length ? (ex + 1) / todo.length : 1} /> : null}
 
         {step === 0 ? (
           <Animated.View key="s0" entering={FadeInRight.duration(380)} style={{ flex: 1, gap: 22, marginTop: 24 }}>
             <View>
               <Txt size={32} weight="extrabold">
-                Seni tanıyalım
+                {o.welcomeTitle}
               </Txt>
               <Txt size={16} color={C.sub}>
-                Arkadaşların seni bu isimle görecek.
+                {o.welcomeText}
               </Txt>
             </View>
             <View style={{ alignItems: 'center' }}>
               <Avatar name={name || '?'} color={color} size={104} />
             </View>
-            <Field label="Adın" value={name} onChangeText={(t) => setName(t.slice(0, 24))} placeholder="ör. Ahmet" />
+            <Field
+              label={t.profile.nameLabel}
+              value={name}
+              onChangeText={(v) => setName(v.slice(0, 24))}
+              placeholder={o.namePlaceholder}
+            />
             <View style={{ gap: 10 }}>
               <Txt size={14} weight="bold" color={C.sub}>
-                Rengin
+                {o.color}
               </Txt>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 {AVATAR_COLORS.map((c) => (
                   <Pressable
                     key={c}
                     accessibilityRole="button"
-                    accessibilityLabel={`Renk ${c}`}
+                    accessibilityLabel={t.profile.colorLabel(c)}
                     accessibilityState={{ selected: c === color }}
                     onPress={() => setColor(c)}
                     style={{
@@ -110,8 +166,8 @@ export default function Onboarding() {
               </View>
             </View>
             <Stepper
-              title="Vücut ağırlığı"
-              sub="kg · kilo oranı skoru için"
+              title={t.profile.bodyWeight}
+              sub={o.bodyWeightSub}
               value={String(bw)}
               onDec={() => setBw(Math.max(30, bw - 1))}
               onInc={() => setBw(Math.min(300, bw + 1))}
@@ -122,66 +178,92 @@ export default function Onboarding() {
               </Txt>
             ) : null}
             <View style={{ flex: 1 }} />
-            <Btn title="Devam" onPress={saveProfileAndNext} loading={updateProfile.isPending} />
+            <Btn title={t.common.next} onPress={saveProfileAndNext} loading={updateProfile.isPending} />
           </Animated.View>
         ) : null}
 
-        {step === 1 ? <GroupStep onDone={() => setStep(2)} /> : null}
+        {step === 1 ? (
+          <GroupStep
+            onDone={() => {
+              setEx(0);
+              setStep(2);
+            }}
+          />
+        ) : null}
 
-        {step === 2 ? (
+        {step === 2 && !cur ? (
+          <View style={{ flex: 1, gap: 18, marginTop: 24 }}>
+            <Txt size={20} weight="extrabold">
+              {o.allHaveStart}
+            </Txt>
+            <View style={{ flex: 1 }} />
+            <Btn title={t.common.next} onPress={() => setStep(3)} />
+          </View>
+        ) : null}
+
+        {step === 2 && cur ? (
           <View style={{ flex: 1, gap: 18, marginTop: 24 }}>
             <View>
               <Txt size={15} weight="bold" color={C.sub}>
-                Başlangıç testi · {ex + 1} / 9
+                {o.testProgress(Math.min(ex, todo.length - 1) + 1, todo.length)}
               </Txt>
               <Txt size={16} color={C.sub} style={{ marginTop: 6 }}>
-                Şu anki seviyeni gir. Ara hedeflerin buna göre hesaplanır.
+                {o.testIntro}
               </Txt>
             </View>
-            <Animated.View key={`ex${ex}`} entering={FadeInRight.duration(350)} style={{ gap: 14 }}>
-              <View style={{ backgroundColor: C.surface, borderRadius: 28, padding: 22, gap: 16, alignItems: 'center' }}>
+            <Animated.View key={`ex-${cur.key}`} entering={FadeInRight.duration(350)} style={{ gap: 14 }}>
+              <View
+                style={{ backgroundColor: C.surface, borderRadius: 28, padding: 22, gap: 16, alignItems: 'center' }}>
                 <Txt size={30} weight="black" style={{ textAlign: 'center', lineHeight: 36 }}>
-                  {EXERCISES[ex].name}
+                  {cur.name}
                 </Txt>
                 <Txt size={16} color={C.sub} style={{ textAlign: 'center' }}>
-                  {question(ex)}
+                  {question(cur, o)}
                 </Txt>
                 <Stepper
                   big
-                  title={EXERCISES[ex].type === 'reps' ? 'tekrar' : EXERCISES[ex].perHand ? 'kg · her el' : 'kg'}
-                  value={fmt(start[ex])}
-                  onDec={() => setStart(start.map((v, i) => (i === ex ? Math.max(0, v - EXERCISES[ex].step) : v)))}
-                  onInc={() => setStart(start.map((v, i) => (i === ex ? v + EXERCISES[ex].step : v)))}
+                  title={
+                    cur.type === 'reps'
+                      ? t.units.reps
+                      : cur.type === 'time'
+                        ? t.units.sec
+                        : cur.perHand
+                          ? `kg · ${t.units.perHand}`
+                          : 'kg'
+                  }
+                  value={cur.type === 'time' ? String(valueFor(cur)) : fmtShort(cur, valueFor(cur))}
+                  onDec={() => setValue(cur, valueFor(cur) - cur.step)}
+                  onInc={() => setValue(cur, valueFor(cur) + cur.step)}
                 />
                 <Txt size={15} weight="bold" color={C.gold}>
-                  Hedef: {EXERCISES[ex].goal} {EXERCISES[ex].unit}
+                  {t.exercise.goal(fmtValue(cur, cur.goal))}
                 </Txt>
               </View>
               <Txt size={14} color={C.sub} style={{ textAlign: 'center' }}>
-                Emin değilsen tahmini gir, sonra düzenleyebilirsin.
+                {o.estimate}
               </Txt>
               <Txt size={12} color={C.muted} style={{ textAlign: 'center', lineHeight: 17 }}>
-                Maksimum denemeler sakatlık riski taşır. Isınmadan deneme yapma, ağır kaldırışlarda yanında biri olsun.
+                {o.safety}
               </Txt>
             </Animated.View>
             <View style={{ flex: 1 }} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <Btn
                 kind="secondary"
-                title="Geri"
+                title={t.common.back}
                 style={{ flex: 1 }}
                 onPress={() => (ex > 0 ? setEx(ex - 1) : setStep(1))}
               />
               <Btn
-                title={ex === 8 ? 'Bitir' : 'Devam'}
+                title={ex >= todo.length - 1 ? o.finish : t.common.next}
                 style={{ flex: 2 }}
                 loading={addEntries.isPending}
-                onPress={() => (ex < 8 ? setEx(ex + 1) : finishTest())}
+                onPress={() => (ex < todo.length - 1 ? setEx(ex + 1) : finishTest())}
               />
             </View>
             {addEntries.error ? (
               <Txt size={15} color={C.danger}>
-                Kaydedilemedi: {addEntries.error.message}
+                {t.log.saveError(addEntries.error.message)}
               </Txt>
             ) : null}
           </View>
@@ -193,27 +275,34 @@ export default function Onboarding() {
               <Animated.View entering={ZoomIn.delay(100).duration(500)}>
                 <Svg width={120} height={120} viewBox="0 0 120 120">
                   <Polygon points="60,6 107,33 107,87 60,114 13,87 13,33" fill={C.accent} />
-                  <Path d="M38 62l15 15 30-32" stroke={C.accentInk} strokeWidth={10} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  <Path
+                    d="M38 62l15 15 30-32"
+                    stroke={C.accentInk}
+                    strokeWidth={10}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                  />
                 </Svg>
               </Animated.View>
               <Animated.View entering={FadeInDown.delay(350).duration(500)}>
                 <Txt size={32} weight="black" style={{ textAlign: 'center', lineHeight: 38 }}>
-                  Başlangıç noktan kaydedildi
+                  {o.doneTitle}
                 </Txt>
               </Animated.View>
               <Animated.View entering={FadeInDown.delay(500).duration(500)}>
                 <Txt size={17} color={C.sub} style={{ textAlign: 'center', lineHeight: 25 }}>
-                  Bugün genel ilerlemen %{progressOf(start).pct}. Bir yıl sonra bakalım nereye geleceksin.
+                  {o.doneText(pct)}
                 </Txt>
               </Animated.View>
               <Animated.View entering={FadeIn.delay(700).duration(500)}>
                 <Txt size={15} weight="bold" color={C.accent}>
-                  +100 XP · İlk adım
+                  +{t.common.xp(XP.start)} · {t.badges.firstStep}
                 </Txt>
               </Animated.View>
             </View>
             <Animated.View entering={FadeInDown.delay(850).duration(500)} style={{ alignSelf: 'stretch' }}>
-              <Btn title="Hadi başlayalım" onPress={finish} loading={updateProfile.isPending} />
+              <Btn title={o.letsGo} onPress={finish} loading={updateProfile.isPending} />
             </Animated.View>
           </View>
         ) : null}
@@ -222,16 +311,16 @@ export default function Onboarding() {
   );
 }
 
-function question(i: number) {
-  const e = EXERCISES[i];
-  if (e.type === 'reps') return 'Tek sette, ara vermeden en fazla kaç tekrar yapabiliyorsun?';
-  if (e.type === 'carry') return 'Her elde kaç kg ile 20 metre yürüyebiliyorsun?';
-  if (e.perHand) return 'Her elde kaç kg dambılla en az 1 tekrar yapabiliyorsun?';
-  return 'Tek tekrarda en fazla kaç kg kaldırabiliyorsun?';
+function question(e: Exercise, o: Dict['onboarding']) {
+  if (e.type === 'reps') return o.qReps;
+  if (e.type === 'time') return o.qTime;
+  if (e.type === 'carry') return o.qCarry(e.distance);
+  if (e.perHand) return o.qPerHand;
+  return o.qWeight;
 }
 
-function Progress({ step, ex }: { step: number; ex: number }) {
-  const parts = [step >= 0 ? 1 : 0, step >= 1 ? 1 : 0, step >= 2 ? (ex + 1) / 9 : 0];
+function Progress({ step, part }: { step: number; part: number }) {
+  const parts = [step >= 0 ? 1 : 0, step >= 1 ? 1 : 0, step >= 2 ? part : 0];
   return (
     <View style={{ flexDirection: 'row', gap: 6 }}>
       {parts.map((p, i) => (
@@ -244,20 +333,28 @@ function Progress({ step, ex }: { step: number; ex: number }) {
 }
 
 function GroupStep({ onDone }: { onDone: () => void }) {
+  const t = useStrings();
+  const o = t.onboarding;
   const [code, setCode] = useState('');
   const [creating, setCreating] = useState(false);
   const [groupName, setGroupName] = useState('');
+  const [start, setStart] = useState(todayISO());
+  const [rows, setRows] = useState<ExerciseRow[]>(DEFAULT_ROWS);
   const [msg, setMsg] = useState('');
+  const [msgError, setMsgError] = useState(false);
   const join = useJoinGroup();
   const create = useCreateGroup();
+  const pro = usePro();
 
   const doJoin = async () => {
     setMsg('');
     try {
       const r = await join.mutateAsync(code);
-      setMsg(r.status === 'pending' ? `${r.name}: yönetici onayı bekleniyor.` : `${r.name} grubuna katıldın!`);
+      setMsgError(false);
+      setMsg(r.status === 'pending' ? t.groups.joinedPending(r.name) : t.groups.joined(r.name));
       setTimeout(onDone, 900);
     } catch (e) {
+      setMsgError(true);
       setMsg((e as Error).message);
     }
   };
@@ -266,10 +363,12 @@ function GroupStep({ onDone }: { onDone: () => void }) {
     setMsg('');
     if (!groupName.trim()) return;
     try {
-      const g = await create.mutateAsync(groupName.trim());
-      setMsg(`Grup kuruldu. Davet kodu: ${g.invite_code}`);
+      const g = await create.mutateAsync({ name: groupName.trim(), start, exercises: rows });
+      setMsgError(false);
+      setMsg(o.created(g.invite_code));
       setTimeout(onDone, 1400);
     } catch (e) {
+      setMsgError(true);
       setMsg((e as Error).message);
     }
   };
@@ -278,49 +377,60 @@ function GroupStep({ onDone }: { onDone: () => void }) {
     <Animated.View key="s1" entering={FadeInRight.duration(380)} style={{ flex: 1, gap: 20, marginTop: 24 }}>
       <View>
         <Txt size={32} weight="extrabold">
-          {creating ? 'Grubunu kur' : 'Grubuna katıl'}
+          {creating ? o.createTitle : o.joinTitle}
         </Txt>
         <Txt size={16} color={C.sub} style={{ lineHeight: 23 }}>
-          {creating
-            ? 'Grubu kur, davet kodunu arkadaşlarına gönder.'
-            : 'Arkadaşının gönderdiği davet kodunu gir. Grubun yoksa yeni bir tane kurabilirsin.'}
+          {creating ? o.createText : o.joinText}
         </Txt>
       </View>
       {creating ? (
-        <Field label="Grup adı" value={groupName} onChangeText={setGroupName} placeholder="ör. Demir Kulübü" maxLength={40} />
+        <>
+          <Field
+            label={t.admin.groupName}
+            value={groupName}
+            onChangeText={setGroupName}
+            placeholder={o.groupPlaceholder}
+            maxLength={40}
+          />
+          <StartDatePicker value={start} onChange={setStart} />
+          <Txt size={18} weight="extrabold">
+            {t.editor.exercises(rows.length)}
+          </Txt>
+          <ExerciseListEditor rows={rows} onChange={setRows} canCustom={pro.isPro} />
+        </>
       ) : (
         <Field
-          label="Davet kodu"
+          label={t.admin.inviteCode}
           value={code}
-          onChangeText={(t) => setCode(t.toUpperCase())}
+          onChangeText={(v) => setCode(v.toUpperCase())}
           autoCapitalize="characters"
           autoCorrect={false}
-          placeholder="ör. K7M2QX"
+          placeholder={t.groups.codePlaceholder}
           style={{ fontSize: 24, letterSpacing: 3 }}
         />
       )}
       {msg ? (
-        <Txt size={15} weight="semibold" color={msg.includes('bulunamadı') ? C.danger : C.accent}>
+        <Txt size={15} weight="semibold" color={msgError ? C.danger : C.accent}>
           {msg}
         </Txt>
       ) : null}
       <View style={{ flex: 1 }} />
       <View style={{ gap: 10 }}>
         {creating ? (
-          <Btn title="Grubu kur" onPress={doCreate} loading={create.isPending} disabled={!groupName.trim()} />
+          <Btn title={t.editor.create} onPress={doCreate} loading={create.isPending} disabled={!groupName.trim()} />
         ) : (
-          <Btn title="Katıl" onPress={doJoin} loading={join.isPending} disabled={code.trim().length < 4} />
+          <Btn title={t.groups.join} onPress={doJoin} loading={join.isPending} disabled={code.trim().length < 4} />
         )}
         <Btn
           kind="secondary"
           height={52}
-          title={creating ? 'Kodum var, katılacağım' : 'Yeni grup kur'}
+          title={creating ? o.haveCode : t.groups.createLabel}
           onPress={() => {
             setCreating(!creating);
             setMsg('');
           }}
         />
-        <Btn kind="ghost" height={44} title="Şimdilik atla" onPress={onDone} />
+        <Btn kind="ghost" height={44} title={o.skip} onPress={onDone} />
       </View>
     </Animated.View>
   );

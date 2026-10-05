@@ -5,20 +5,25 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Icon } from '@/components/icon';
 import { Avatar, Btn, Empty, Loading, Pill, Screen, styles, Title, Txt } from '@/components/ui';
 import { C } from '@/constants/theme';
-import { EXERCISE_BY_KEY, entryText, type ExerciseKey } from '@/lib/challenge';
-import { useActiveGroup, useGroupBoard, useLikes, useToggleLike } from '@/lib/data';
+import { AdBanner } from '@/components/ad-banner';
+import { strings, useStrings } from '@/i18n';
+import { entryText } from '@/lib/challenge';
+import { useActiveGroup, useChallenge, useGroupBoard, useLikes, useToggleLike } from '@/lib/data';
 import { useUserId } from '@/lib/auth';
 
 export default function Feed() {
+  const t = useStrings();
   const uid = useUserId();
   const { group, loading } = useActiveGroup();
-  const board = useGroupBoard(group?.id);
+  const ch = useChallenge();
+  const board = useGroupBoard(ch);
 
+  // Sadece grubun hareketleri ve grubun 1 yılı içindeki kayıtlar (başlangıç ölçümleri hariç)
   const items = board.active
     .flatMap((p) =>
       p.entries
-        .filter((e) => !e.is_start)
-        .map((e) => ({ e, p, ev: p.stats.events[e.id] })),
+        .filter((e) => !e.is_start && p.stats.events[e.id] && ch.byKey[e.exercise])
+        .map((e) => ({ e, p, ev: p.stats.events[e.id], ex: ch.byKey[e.exercise] })),
     )
     .sort((a, b) => b.e.created_at.localeCompare(a.e.created_at))
     .slice(0, 60);
@@ -30,30 +35,29 @@ export default function Feed() {
 
   return (
     <Screen refreshing={board.isRefetching} onRefresh={board.refetch} gap={14}>
-      <Title sub={group?.name}>Akış</Title>
+      <Title sub={group?.name}>{t.feed.title}</Title>
 
       {!group ? (
-        <Empty title="Henüz bir grubun yok" text="Arkadaşlarının rekorlarını burada görmek için bir gruba katıl.">
-          <Btn title="Gruplar" onPress={() => router.push('/groups')} style={{ alignSelf: 'stretch', marginTop: 8 }} />
+        <Empty title={t.board.noGroupTitle} text={t.feed.noGroupText}>
+          <Btn title={t.board.groups} onPress={() => router.push('/groups')} style={{ alignSelf: 'stretch', marginTop: 8 }} />
         </Empty>
       ) : null}
 
       {group && !board.isLoading && items.length === 0 ? (
-        <Empty title="Henüz kayıt yok" text="İlk kaydı sen gir, akış hareketlensin." />
+        <Empty title={t.feed.emptyTitle} text={t.feed.emptyText} />
       ) : null}
 
-      {items.map(({ e, p, ev }, i) => {
-        const ex = EXERCISE_BY_KEY[e.exercise as ExerciseKey];
+      {items.map(({ e, p, ev, ex }, i) => {
         const likeRows = (likes.data ?? []).filter((l) => l.entry_id === e.id);
         const liked = likeRows.some((l) => l.user_id === uid);
         const badge = ev?.goal
-          ? { t: 'HEDEF TAMAM', bg: C.gold }
+          ? { t: t.feed.badgeGoal, bg: C.gold }
           : ev?.milestones
-            ? { t: 'ARA HEDEF', bg: C.accent }
+            ? { t: t.feed.badgeMilestone, bg: C.accent }
             : ev?.record
-              ? { t: 'REKOR', bg: C.accent }
+              ? { t: t.feed.badgeRecord, bg: C.accent }
               : null;
-        const verb = ev?.goal ? 'hedefini tamamladı' : ev?.record ? '· yeni rekor' : '· kayıt';
+        const verb = ev?.goal ? t.feed.verbGoal : ev?.record ? t.feed.verbRecord : t.feed.verbEntry;
         return (
           <Animated.View key={e.id} entering={FadeInDown.delay(Math.min(i, 8) * 45 + 60).duration(450)}>
             <View style={{ backgroundColor: C.surface, borderRadius: 22, padding: 18, gap: 14 }}>
@@ -61,7 +65,7 @@ export default function Feed() {
                 <Avatar name={p.name} color={p.color} size={42} />
                 <View style={{ flex: 1 }}>
                   <Txt size={16} weight="bold">
-                    {p.isMe ? 'Sen' : p.name}
+                    {p.isMe ? t.common.you : p.name}
                   </Txt>
                   <Txt size={14} color={C.sub}>
                     {timeAgo(e.created_at)}
@@ -97,22 +101,24 @@ export default function Feed() {
                 ]}>
                 <Icon name="bolt" size={18} color={liked ? C.accentInk : C.text} />
                 <Txt size={15} weight="bold" color={liked ? C.accentInk : C.text}>
-                  Helal · {likeRows.length}
+                  {t.feed.like} · {likeRows.length}
                 </Txt>
               </Pressable>
             </View>
           </Animated.View>
         );
       })}
+      {items.length ? <AdBanner /> : null}
     </Screen>
   );
 }
 
 function timeAgo(iso: string) {
+  const t = strings().feed;
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60) return 'Şimdi';
-  if (diff < 3600) return `${Math.floor(diff / 60)} dk önce`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} saat önce`;
-  if (diff < 172800) return 'Dün';
-  return `${Math.floor(diff / 86400)} gün önce`;
+  if (diff < 60) return t.now;
+  if (diff < 3600) return t.minutesAgo(Math.floor(diff / 60));
+  if (diff < 86400) return t.hoursAgo(Math.floor(diff / 3600));
+  if (diff < 172800) return t.yesterday;
+  return t.daysAgo(Math.floor(diff / 86400));
 }
