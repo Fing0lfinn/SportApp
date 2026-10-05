@@ -156,6 +156,9 @@ export default function Onboarding() {
               <Txt size={14} color={C.sub} style={{ textAlign: 'center' }}>
                 Emin değilsen tahmini gir, sonra düzenleyebilirsin.
               </Txt>
+              <Txt size={12} color={C.muted} style={{ textAlign: 'center', lineHeight: 17 }}>
+                Maksimum denemeler sakatlık riski taşır. Isınmadan deneme yapma, ağır kaldırışlarda yanında biri olsun.
+              </Txt>
             </Animated.View>
             <View style={{ flex: 1 }} />
             <View style={{ flexDirection: 'row', gap: 10 }}>

@@ -226,6 +226,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      delete_account: { Args: never; Returns: undefined };
       create_group: {
         Args: { p_name: string };
         Returns: {

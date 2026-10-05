@@ -22,6 +22,9 @@ export default function Profile() {
   const board = useGroupBoard(group?.id);
   const [editing, setEditing] = useState(false);
   const qc = useQueryClient();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   if (!profile.data || mine.isLoading) return <Loading />;
   const p = profile.data;
@@ -164,6 +167,35 @@ export default function Profile() {
             qc.clear();
           }}
         />
+        <Btn
+          kind={confirmDelete ? 'primary' : 'ghost'}
+          height={48}
+          style={confirmDelete ? { backgroundColor: C.dangerFill } : undefined}
+          title={confirmDelete ? 'Emin misin? Tüm kayıtların kalıcı olarak silinir' : 'Hesabımı sil'}
+          loading={deleting}
+          onPress={async () => {
+            if (!confirmDelete) {
+              setConfirmDelete(true);
+              return;
+            }
+            setDeleting(true);
+            setDeleteError('');
+            const { error } = await supabase.rpc('delete_account');
+            if (error) {
+              setDeleting(false);
+              setDeleteError('Hesap silinemedi. İnternet bağlantını kontrol edip tekrar dene.');
+              return;
+            }
+            await forgetPushToken().catch(() => {});
+            await supabase.auth.signOut();
+            qc.clear();
+          }}
+        />
+        {deleteError ? (
+          <Txt size={14} color={C.danger} style={{ textAlign: 'center' }}>
+            {deleteError}
+          </Txt>
+        ) : null}
       </View>
     </Screen>
   );

@@ -8,8 +8,12 @@
     "scheme": "sportapp",
     "userInterfaceStyle": "dark",
     "ios": {
-      "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.fing0lfinn.sportapp"
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "com.fing0lfinn.sportapp",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -32,7 +36,7 @@
         {
           "backgroundColor": "#0B0D10",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 160
         }
       ],
       "expo-sharing",
