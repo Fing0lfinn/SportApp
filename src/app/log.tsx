@@ -22,7 +22,7 @@ import {
   type ExerciseKey,
   type UserStats,
 } from '@/lib/challenge';
-import { useAddEntries, useMyStats } from '@/lib/data';
+import { useLogEntry, useMyStats } from '@/lib/data';
 import { syncLocalNotifications } from '@/lib/notifications';
 
 type Result = EntryEvent & { levelUp: string | null; text: string; nextStop: number | null };
@@ -38,7 +38,7 @@ function defaults(stats: UserStats, key: ExerciseKey): FormValue {
 export default function LogEntry() {
   const params = useLocalSearchParams<{ exercise?: ExerciseKey }>();
   const mine = useMyStats();
-  const add = useAddEntries();
+  const add = useLogEntry();
   const [key, setKey] = useState<ExerciseKey>(params.exercise ?? 'squat');
   const [value, setValue] = useState<FormValue>(() => defaults(mine.stats, params.exercise ?? 'squat'));
   const [result, setResult] = useState<Result | null>(null);
@@ -55,8 +55,7 @@ export default function LogEntry() {
   else info = value.distance >= 20 ? `Her elde · en iyin ${fmt(best)} kg` : 'Sayılması için en az 20 m';
 
   const save = async () => {
-    const rows = await add.mutateAsync([{ exercise: key, ...value, performed_on: todayISO() }]);
-    const row = rows[0];
+    const row = await add.mutateAsync({ exercise: key, ...value, performed_on: todayISO() });
     const all = [...(mine.data ?? []), row];
     const after = computeStats(all);
     const ev = after.events[row.id] ?? { record: false, milestones: 0, goal: false, xp: 10 };

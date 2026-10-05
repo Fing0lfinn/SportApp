@@ -213,7 +213,14 @@ export default function ExerciseDetail() {
                     {e.edited ? ' · düzenlendi' : ''}
                   </Txt>
                 </View>
-                {mine.stats.events[e.id]?.record ? <Pill>REKOR</Pill> : null}
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {e.pending ? (
+                    <Pill bg={C.goldBg} fg={C.gold}>
+                      BEKLİYOR
+                    </Pill>
+                  ) : null}
+                  {mine.stats.events[e.id]?.record ? <Pill>REKOR</Pill> : null}
+                </View>
               </Pressable>
             </Animated.View>
           ))}

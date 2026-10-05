@@ -87,6 +87,8 @@ export type Entry = {
   performed_on: string;
   edited: boolean;
   created_at: string;
+  /** Telefonda bekliyor, henüz sunucuya gitmedi */
+  pending?: boolean;
 };
 
 // ---------------------------------------------------------------- tarih

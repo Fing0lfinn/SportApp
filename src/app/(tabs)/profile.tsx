@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -20,6 +21,7 @@ export default function Profile() {
   const { group, isAdmin } = useActiveGroup();
   const board = useGroupBoard(group?.id);
   const [editing, setEditing] = useState(false);
+  const qc = useQueryClient();
 
   if (!profile.data || mine.isLoading) return <Loading />;
   const p = profile.data;
@@ -142,6 +144,8 @@ export default function Profile() {
         <Txt size={20} weight="extrabold">
           Araçlar ve ayarlar
         </Txt>
+        <MenuRow icon="bolt" title="Yıl sonu özeti" sub="Senin yılın, hikaye gibi (önizleme)" onPress={() => router.push('/wrapped')} />
+        <MenuRow icon="board" title="Final günü" sub="4 Ekim 2027 · geri sayım ve sıralama" onPress={() => router.push('/final')} />
         <MenuRow icon="calendar" title="Aylık özet" sub="Ayın kayıtları, rekorları, paylaşılabilir kart" onPress={() => router.push('/month')} />
         <MenuRow icon="scale" title="Plaka hesaplayıcı" sub="Bara hangi plakaları takacağını göster" onPress={() => router.push('/plates')} />
         <MenuRow icon="bell" title="Bildirimler" sub="Arkadaş bildirimleri ve hatırlatmalar" onPress={() => router.push('/notifications')} />
@@ -157,6 +161,7 @@ export default function Profile() {
           onPress={async () => {
             await forgetPushToken().catch(() => {});
             await supabase.auth.signOut();
+            qc.clear();
           }}
         />
       </View>

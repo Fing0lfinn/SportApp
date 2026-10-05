@@ -4,7 +4,11 @@ import { Figtree_600SemiBold } from '@expo-google-fonts/figtree/600SemiBold';
 import { Figtree_700Bold } from '@expo-google-fonts/figtree/700Bold';
 import { Figtree_800ExtraBold } from '@expo-google-fonts/figtree/800ExtraBold';
 import { Figtree_900Black } from '@expo-google-fonts/figtree/900Black';
-import { focusManager, QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import { focusManager, onlineManager, QueryClient, useQueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import { DarkTheme, router, Stack, ThemeProvider } from 'expo-router';
@@ -15,16 +19,25 @@ import { AppState, Platform } from 'react-native';
 
 import { C } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/lib/auth';
-import { useMyEntries, useProfile } from '@/lib/data';
+import { OfflineBanner } from '@/components/offline-banner';
+import { useMyEntries, useProfile, useSyncOutbox } from '@/lib/data';
 import { configureNotifications, registerForPush, syncLocalNotifications } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 
 SplashScreen.preventAutoHideAsync();
 configureNotifications();
 
+const WEEK = 7 * 24 * 60 * 60 * 1000;
+
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
+  defaultOptions: { queries: { staleTime: 30_000, retry: 1, gcTime: WEEK } },
 });
+
+// Son görülen veriler telefonda saklanır: uygulama internetsiz de açılır.
+const persister = createAsyncStoragePersister({ storage: AsyncStorage, key: 'query-cache' });
+
+// İnternet yokken sorgular hata vermek yerine bekler.
+onlineManager.setEventListener((setOnline) => NetInfo.addEventListener((s) => setOnline(s.isConnected !== false)));
 
 // Uygulamaya geri dönülünce verileri tazele.
 if (Platform.OS !== 'web') {
@@ -55,14 +68,14 @@ export default function RootLayout() {
   });
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: WEEK, buster: 'v3' }}>
       <AuthProvider>
         <ThemeProvider value={theme}>
           <StatusBar style="light" />
           <RootStack fontsLoaded={fontsLoaded} />
         </ThemeProvider>
       </AuthProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }
 
@@ -78,11 +91,13 @@ function RootStack({ fontsLoaded }: { fontsLoaded: boolean }) {
   }, [ready]);
 
   useLiveUpdates(signedIn);
+  useOutboxSync(signedIn);
   useNotificationSetup(signedIn && onboarded);
 
   if (!ready) return null;
 
   return (
+    <>
     <Stack
       screenOptions={{
         headerShown: false,
@@ -109,8 +124,12 @@ function RootStack({ fontsLoaded }: { fontsLoaded: boolean }) {
         <Stack.Screen name="month" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="group-admin" />
+        <Stack.Screen name="wrapped" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+        <Stack.Screen name="final" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack.Protected>
     </Stack>
+    {signedIn && onboarded ? <OfflineBanner /> : null}
+    </>
   );
 }
 
@@ -163,4 +182,23 @@ function useNotificationSetup(enabled: boolean) {
     });
     return () => sub.remove();
   }, [enabled]);
+}
+
+/** Bekleyen kayıtları açılışta, internet gelince ve uygulamaya dönünce gönder. */
+function useOutboxSync(enabled: boolean) {
+  const sync = useSyncOutbox();
+  useEffect(() => {
+    if (!enabled) return;
+    sync();
+    const net = NetInfo.addEventListener((s) => {
+      if (s.isConnected) sync();
+    });
+    const app = AppState.addEventListener('change', (st) => {
+      if (st === 'active') sync();
+    });
+    return () => {
+      net();
+      app.remove();
+    };
+  }, [enabled, sync]);
 }

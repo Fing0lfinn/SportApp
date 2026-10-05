@@ -1,10 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useUserId } from './auth';
 import { computeStats, type Entry, type ExerciseKey, type UserStats } from './challenge';
 import type { Tables } from './database.types';
+import { applyOutbox, enqueue, flushOutbox, readOutbox, type EntryPatch, type OutboxOp } from './outbox';
 import { supabase } from './supabase';
 
 export type Profile = Tables<'profiles'>;
@@ -46,6 +48,7 @@ export const keys = {
   myEntries: (uid: string) => ['entries', 'me', uid] as const,
   group: (gid: string) => ['group', gid] as const,
   likes: (gid: string) => ['likes', gid] as const,
+  outbox: (uid: string) => ['outbox', uid] as const,
 };
 
 // ---------------------------------------------------------------- profil
@@ -204,14 +207,33 @@ export function useGroupAdmin(groupId: string | undefined) {
 
 // ---------------------------------------------------------------- kayıtlar
 
-export function useMyEntries() {
+/** Telefonda bekleyen (henüz gönderilmemiş) işlemler. */
+export function useOutbox() {
   const uid = useUserId();
   return useQuery({
+    queryKey: keys.outbox(uid),
+    enabled: !!uid,
+    networkMode: 'always',
+    staleTime: Infinity,
+    queryFn: () => readOutbox(uid),
+  });
+}
+
+/** Kendi kayıtların: sunucudakiler + telefonda bekleyenler. */
+export function useMyEntries() {
+  const uid = useUserId();
+  const outbox = useOutbox();
+  const q = useQuery({
     queryKey: keys.myEntries(uid),
     enabled: !!uid,
     queryFn: async () =>
       (check(await supabase.from('entries').select('*').eq('user_id', uid)) as Entry[]).map(toEntry),
   });
+  const data = useMemo(
+    () => (q.data || outbox.data?.length ? applyOutbox(q.data ?? [], outbox.data ?? []) : undefined),
+    [q.data, outbox.data],
+  );
+  return { ...q, data, isLoading: q.isLoading && !data };
 }
 
 export function useMyStats() {
@@ -223,6 +245,7 @@ export function useMyStats() {
 /** Grubun üyeleri, profilleri ve kayıtları + her biri için hesaplanmış istatistikler. */
 export function useGroupBoard(groupId: string | undefined) {
   const uid = useUserId();
+  const outbox = useOutbox();
   const q = useQuery({
     queryKey: keys.group(groupId ?? ''),
     enabled: !!groupId,
@@ -244,7 +267,8 @@ export function useGroupBoard(groupId: string | undefined) {
   const players = useMemo<Player[]>(() => {
     if (!q.data) return [];
     return q.data.members.map((m) => {
-      const own = q.data.entries.filter((e) => e.user_id === m.user_id);
+      const server = q.data.entries.filter((e) => e.user_id === m.user_id);
+      const own = m.user_id === uid ? applyOutbox(server, outbox.data ?? []) : server;
       return {
         id: m.user_id,
         name: m.profiles?.name || 'İsimsiz',
@@ -257,7 +281,7 @@ export function useGroupBoard(groupId: string | undefined) {
         stats: computeStats(own),
       };
     });
-  }, [q.data, uid]);
+  }, [q.data, uid, outbox.data]);
 
   const active = players.filter((p) => p.status === 'active');
   const ranked = [...active].sort((a, b) => b.stats.pct - a.stats.pct || b.stats.done - a.stats.done);
@@ -291,20 +315,76 @@ export function useAddEntries() {
   });
 }
 
-export function useUpdateEntry() {
-  const invalidate = useInvalidateEntries();
+/** Sıraya yazar, ekranı hemen günceller, sonra göndermeyi dener. */
+function useOutboxWrite() {
+  const uid = useUserId();
+  const qc = useQueryClient();
+  const sync = useSyncOutbox();
+  return async (op: OutboxOp) => {
+    const ops = await enqueue(uid, op);
+    qc.setQueryData(keys.outbox(uid), ops);
+    sync();
+  };
+}
+
+/** Bekleyen işlemleri gönderir; gidenler olursa verileri tazeler. */
+export function useSyncOutbox() {
+  const uid = useUserId();
+  const qc = useQueryClient();
+  return useCallback(() => {
+    if (!uid) return;
+    flushOutbox(uid)
+      .then(async ({ sent }) => {
+        if (sent) {
+          await Promise.all([
+            qc.invalidateQueries({ queryKey: ['entries'] }),
+            qc.invalidateQueries({ queryKey: ['group'] }),
+          ]);
+        }
+        qc.setQueryData(keys.outbox(uid), await readOutbox(uid));
+      })
+      .catch(() => {});
+  }, [uid, qc]);
+}
+
+/** Yeni kayıt: internet olmasa da kaydedilir. */
+export function useLogEntry() {
+  const uid = useUserId();
+  const write = useOutboxWrite();
   return useMutation({
-    mutationFn: async ({ id, ...patch }: { id: string; weight: number; reps: number; distance: number }) =>
-      check(await supabase.from('entries').update({ ...patch, edited: true }).eq('id', id).select().single()),
-    onSuccess: invalidate,
+    networkMode: 'always',
+    mutationFn: async (input: EntryInput) => {
+      const row: Entry = {
+        id: Crypto.randomUUID(),
+        user_id: uid,
+        exercise: input.exercise,
+        weight: input.weight,
+        reps: input.reps,
+        distance: input.distance,
+        is_start: !!input.is_start,
+        performed_on: input.performed_on,
+        edited: false,
+        created_at: new Date().toISOString(),
+      };
+      await write({ kind: 'insert', id: row.id, row });
+      return row;
+    },
+  });
+}
+
+export function useUpdateEntry() {
+  const write = useOutboxWrite();
+  return useMutation({
+    networkMode: 'always',
+    mutationFn: async ({ id, ...patch }: { id: string } & EntryPatch) => write({ kind: 'update', id, patch }),
   });
 }
 
 export function useDeleteEntry() {
-  const invalidate = useInvalidateEntries();
+  const write = useOutboxWrite();
   return useMutation({
-    mutationFn: async (id: string) => check(await supabase.from('entries').delete().eq('id', id)),
-    onSuccess: invalidate,
+    networkMode: 'always',
+    mutationFn: async (id: string) => write({ kind: 'delete', id }),
   });
 }
 

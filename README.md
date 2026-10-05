@@ -56,6 +56,10 @@ Herkes sadece kendi grubundaki kişilerin profil ve kayıtlarını görebilir, s
 
 **Dashboard ayarı:** Authentication → Sign In / Providers → Email → **Confirm email** kapalı olmalı. Açıksa her kayıtta onay e-postası gider ve Supabase'in ücretsiz e-posta limiti (saatte birkaç e-posta) arkadaşların kaydını engeller.
 
+## İnternetsiz kullanım
+
+Son görülen veriler telefonda saklanır; uygulama internetsiz de açılır. İnternet yokken girilen, düzenlenen ya da silinen kayıtlar telefonda sıraya yazılır, ekranda "BEKLİYOR" olarak görünür ve bağlantı gelince sırayla gönderilir. Kayıt kimlikleri telefonda üretildiği için aynı kayıt iki kez yazılmaz.
+
 ## Bildirimler
 
 - **Hatırlatmalar** (haftalık hatırlatma, 100. gün, yarı yol, son 30 gün, final) telefonda kurulur; Expo Go'da da çalışır.
@@ -83,6 +87,8 @@ src/
     badge/[id]         Rozet detayı
     plates             Plaka hesaplayıcı
     notifications      Bildirim ayarları
+    wrapped            Yıl sonu özeti (hikaye gibi slaytlar)
+    final              Final günü: geri sayım, sıralamanın açıklanması
     onboarding         Profil, grup ve 9 hareketlik başlangıç testi
     sign-in
   components/          Arayüz parçaları (ui, tab bar, grafik, form)
@@ -91,6 +97,8 @@ src/
     data.ts            Supabase sorguları ve React Query hook'ları
     badges.ts, month.ts, plates.ts, guide.ts
     notifications.ts   Yerel hatırlatmalar ve push kaydı
+    outbox.ts          İnternetsiz kayıt: bekleyen işlemler ve senkronizasyon
+    final.ts           Final saati ve geri sayım
 supabase/migrations/   Veritabanı şeması
 ```
 
@@ -99,5 +107,6 @@ Tasarım prototipi: https://claude.ai/artifact/6AtgSF6XKEiWn7UFkbLXWM
 ## Yol haritası
 
 - **1. sürüm:** giriş, profil kurulumu ve başlangıç testi, gruplar ve davet kodu, kayıt ekle/düzenle/sil, pano, hareket detayı ve grafik, sıralama (genel, hareket, kilo oranı), akış ve beğeni, ara hedefler, XP, seviye, seri, canlı güncelleme
-- **2. sürüm (bu):** rozetler, kutlama animasyonları, bildirimler, hareket rehberi, paylaşım kartları, grup yönetimi, aylık özet, plaka hesaplayıcı
-- **3. sürüm:** Apple Sağlık / Health Connect, internetsiz kayıt, widget, yıl sonu özeti, final günü
+- **2. sürüm:** rozetler, kutlama animasyonları, bildirimler, hareket rehberi, paylaşım kartları, grup yönetimi, aylık özet, plaka hesaplayıcı
+- **3. sürüm (bu):** internetsiz kayıt, yıl sonu özeti, final günü
+- **Sonra (EAS derlemesi gerekir):** Apple Sağlık / Health Connect, ana ekran widget'ı. Bu ikisi Expo Go'da çalışmayan yerel kod istiyor.

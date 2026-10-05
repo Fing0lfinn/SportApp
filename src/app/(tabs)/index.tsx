@@ -7,6 +7,7 @@ import { Bar, CountUp, Loading, Ring, Screen, styles, Txt } from '@/components/u
 import { C, F } from '@/constants/theme';
 import { daysLeft, EXERCISES, fmt, todayIndex } from '@/lib/challenge';
 import { useActiveGroup, useGroupBoard, useMyStats } from '@/lib/data';
+import { isFinalDay, isFinalOver } from '@/lib/final';
 
 export default function Home() {
   const { group } = useActiveGroup();
@@ -47,6 +48,28 @@ export default function Home() {
             </Txt>
           </Pressable>
         </View>
+
+        {isFinalDay() || isFinalOver() ? (
+          <Animated.View entering={FadeInDown.duration(500)}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/final')}
+              style={({ pressed }) => ({
+                backgroundColor: C.gold,
+                borderRadius: 24,
+                padding: 20,
+                gap: 4,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+              })}>
+              <Txt size={13} weight="black" color={C.accentInk} style={{ letterSpacing: 1.5 }}>
+                {isFinalOver() ? 'MEYDAN OKUMA BİTTİ' : 'BUGÜN FİNAL GÜNÜ'}
+              </Txt>
+              <Txt size={24} weight="black" color={C.accentInk}>
+                {isFinalOver() ? 'Sonuçları gör' : 'Sıralama 20:00\'de belli oluyor'}
+              </Txt>
+            </Pressable>
+          </Animated.View>
+        ) : null}
 
         <View style={{ backgroundColor: C.surface, borderRadius: 28, padding: 22, flexDirection: 'row', alignItems: 'center', gap: 22 }}>
           <Ring value={s.pct / 100}>
