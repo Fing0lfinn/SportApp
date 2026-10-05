@@ -51,6 +51,12 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "backgroundColor": "#0B0D10"
+    "backgroundColor": "#0B0D10",
+    "owner": "cptmirana",
+    "extra": {
+      "eas": {
+        "projectId": "5add212d-cad7-4673-8cd1-8825fdb1d3a8"
+      }
+    }
   }
 }
