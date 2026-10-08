@@ -12,7 +12,7 @@ import { EASE, Txt } from './ui';
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
-const ICONS: Record<string, IconName> = { index: 'home', board: 'board', feed: 'feed', profile: 'user' };
+const ICONS: Record<string, IconName> = { index: 'home', board: 'board', nutrition: 'food', feed: 'feed', profile: 'user' };
 
 export function TabBar({ state, navigation, insets }: TabBarProps) {
   const t = useStrings().tabs;

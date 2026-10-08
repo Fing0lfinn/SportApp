@@ -16,6 +16,8 @@ export default function GroupAdmin() {
   const { group, isAdmin } = useActiveGroup();
   const ch = useChallenge();
   const board = useGroupBoard(ch);
+  // Yönetici engellediği kişileri de yönetebilsin
+  const members = board.players.filter((p) => p.status === 'active');
   const admin = useGroupAdmin(group?.id);
   const [name, setName] = useState(group?.name ?? '');
   const [confirm, setConfirm] = useState<string | null>(null);
@@ -129,9 +131,9 @@ export default function GroupAdmin() {
       ) : null}
 
       <Txt size={18} weight="extrabold" style={{ marginTop: 8 }}>
-        {a.members(board.active.length)}
+        {a.members(members.length)}
       </Txt>
-      {board.active.map((p, i) => (
+      {members.map((p, i) => (
         <MemberRow
           key={p.id}
           i={i}

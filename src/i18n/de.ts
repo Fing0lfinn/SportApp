@@ -1,3 +1,4 @@
+import { deHealth } from './health/de';
 import type { Dict } from './tr';
 
 const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
@@ -479,7 +480,7 @@ export const de: Dict = {
     exercisesNote: 'Alle treten mit derselben Liste an. Eine Übung zu entfernen löscht keine Einträge, sie fällt nur aus der Rangliste.',
     create: 'Gruppe erstellen',
   },
-  tabs: { index: 'Start', board: 'Rangliste', feed: 'Feed', profile: 'Profil' },
+  tabs: { index: 'Start', board: 'Rangliste', nutrition: 'Ernährung', feed: 'Feed', profile: 'Profil' },
   ui: { dec: (title) => `${title} verringern`, inc: (title) => `${title} erhöhen` },
   offline: {
     offline: 'Du bist offline · Einträge werden auf dem Handy gespeichert',
@@ -535,4 +536,5 @@ export const de: Dict = {
     soon: 'Pro gibt es schon sehr bald.',
     removeAds: 'Werbung entfernen · Pro holen',
   },
+  ...deHealth,
 };

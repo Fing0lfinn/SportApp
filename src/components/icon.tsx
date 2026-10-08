@@ -28,6 +28,14 @@ const PATHS = {
   down: 'M6 9l6 6 6-6',
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
+  flag: 'M5 21V4M5 4h12l-2.5 4.5L17 13H5',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+  block: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM5.6 5.6l12.8 12.8',
+  drop: 'M12 3s6.5 6.6 6.5 11.2a6.5 6.5 0 0 1-13 0C5.5 9.6 12 3 12 3z',
+  food: 'M7 3v18M4 3v5a3 3 0 0 0 6 0V3M17 21V3c-2.2 1.2-3.5 3.8-3.5 7.5V13H17',
+  search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
+  undo: 'M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3',
+  edit: 'M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4',
 } as const;
 
 export type IconName = keyof typeof PATHS;

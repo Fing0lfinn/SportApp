@@ -3,10 +3,14 @@ import { useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 
 import { ToggleRow } from '@/components/toggle-row';
-import { Btn, IconBtn, Screen, Txt } from '@/components/ui';
+import { Btn, Chips, IconBtn, Screen, Txt } from '@/components/ui';
 import { C } from '@/constants/theme';
 import { useStrings } from '@/i18n';
+import { todayISO } from '@/lib/challenge';
 import { notifyPrefs, useChallenge, useMyEntries, useProfile, useUpdateProfile, type NotifyPrefs } from '@/lib/data';
+import { useDailyTargets } from '@/lib/health';
+import { useWater } from '@/lib/nutrition';
+import { getWaterPrefs, reminderHours, setWaterPrefs, syncWaterReminders, type WaterPrefs } from '@/lib/water-reminders';
 import {
   askPermission,
   getLocalPrefs,
@@ -30,11 +34,26 @@ export default function NotificationSettings() {
   const [permitted, setPermitted] = useState<boolean | null>(null);
   const [push, setPush] = useState<PushStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const [water, setWater] = useState<WaterPrefs>({ enabled: true, every: 2 });
+  const todayWater = useWater(todayISO());
+  const targets = useDailyTargets();
 
   useEffect(() => {
     getLocalPrefs().then(setLocal);
+    getWaterPrefs().then(setWater);
     hasPermission().then(setPermitted);
   }, []);
+
+  const setWaterPref = async (patch: Partial<WaterPrefs>) => {
+    const next = { ...water, ...patch };
+    setWater(next);
+    await setWaterPrefs(next);
+    if (next.enabled && !(await askPermission())) {
+      setPermitted(false);
+      return;
+    }
+    await syncWaterReminders(todayWater.total, targets.water).catch(() => {});
+  };
 
   const server = notifyPrefs(profile.data);
   const setServer = (patch: Partial<NotifyPrefs>) => update.mutate({ notify: { ...server, ...patch } });
@@ -70,6 +89,7 @@ export default function NotificationSettings() {
               setPermitted(ok);
               if (ok) {
                 await syncLocalNotifications(entries.data ?? [], ch);
+                await syncWaterReminders(todayWater.total, targets.water).catch(() => {});
                 setPush(await registerForPush());
               }
               setBusy(false);
@@ -115,6 +135,23 @@ export default function NotificationSettings() {
         value={local.milestones}
         onChange={(v) => setLocalPref({ milestones: v })}
       />
+
+      <Txt size={18} weight="extrabold" style={{ marginTop: 8 }}>
+        {t.water.remindersTitle}
+      </Txt>
+      <ToggleRow
+        title={t.water.reminders}
+        sub={t.water.remindersSub(reminderHours(water.every).length)}
+        value={water.enabled}
+        onChange={(v) => setWaterPref({ enabled: v })}
+      />
+      {water.enabled ? (
+        <Chips
+          items={([1, 2, 3] as const).map((h) => ({ key: String(h), label: t.water.every(h) }))}
+          value={String(water.every)}
+          onChange={(v) => setWaterPref({ every: Number(v) as WaterPrefs['every'] })}
+        />
+      ) : null}
     </Screen>
   );
 }

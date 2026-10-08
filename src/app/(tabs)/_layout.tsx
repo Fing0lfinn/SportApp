@@ -10,6 +10,7 @@ export default function TabsLayout() {
       screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: C.bg }, animation: 'fade' }}>
       <Tabs.Screen name="index" />
       <Tabs.Screen name="board" />
+      <Tabs.Screen name="nutrition" />
       <Tabs.Screen name="feed" />
       <Tabs.Screen name="profile" />
     </Tabs>

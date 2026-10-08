@@ -17,7 +17,8 @@ import {
   type UserStats,
 } from './challenge';
 import type { Json, Tables } from './database.types';
-import { applyOutbox, enqueue, flushOutbox, readOutbox, type EntryPatch, type OutboxOp } from './outbox';
+import { applyOutbox, enqueue, flushOutbox, readOutbox, type OutboxOp } from './outbox';
+import { useBlocks } from './safety';
 import { supabase } from './supabase';
 
 export type Profile = Tables<'profiles'>;
@@ -36,6 +37,8 @@ export type Player = {
   role: 'admin' | 'member';
   status: 'active' | 'pending';
   isMe: boolean;
+  /** Engellediğin kişi: sıralamada ve akışta görünmez */
+  blocked: boolean;
   entries: Entry[];
   stats: UserStats;
 };
@@ -43,6 +46,22 @@ export type Player = {
 function check<T>(res: { data: T; error: { message: string } | null }) {
   if (res.error) throw new Error(res.error.message);
   return res.data as NonNullable<T>;
+}
+
+const PAGE = 1000;
+
+/** Supabase bir sorguda en fazla 1000 satır döndürür; hepsini sırayla sayfa sayfa al. */
+export async function fetchAll<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+) {
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const res = await page(from, from + PAGE - 1);
+    if (res.error) throw new Error(res.error.message);
+    const rows = res.data ?? [];
+    out.push(...rows);
+    if (rows.length < PAGE) return out;
+  }
 }
 
 /** Postgres numeric değerleri bazen metin gelebilir; hesaplardan önce sayıya çevir. */
@@ -314,7 +333,11 @@ export function useMyEntries() {
     queryKey: keys.myEntries(uid),
     enabled: !!uid,
     queryFn: async () =>
-      (check(await supabase.from('entries').select('*').eq('user_id', uid)) as Entry[]).map(toEntry),
+      (
+        await fetchAll((from, to) =>
+          supabase.from('entries').select('*').eq('user_id', uid).order('id').range(from, to),
+        )
+      ).map(toEntry),
   });
   const data = useMemo(
     () => (q.data || outbox.data?.length ? applyOutbox(q.data ?? [], outbox.data ?? []) : undefined),
@@ -334,6 +357,7 @@ export function useMyStats() {
 export function useGroupBoard(ch: Challenge) {
   const uid = useUserId();
   const outbox = useOutbox();
+  const blocks = useBlocks();
   const groupId = ch.groupId;
   const q = useQuery({
     queryKey: keys.group(groupId ?? ''),
@@ -347,7 +371,11 @@ export function useGroupBoard(ch: Challenge) {
       );
       const activeIds = members.filter((m) => m.status === 'active').map((m) => m.user_id);
       const entries = activeIds.length
-        ? (check(await supabase.from('entries').select('*').in('user_id', activeIds)) as Entry[]).map(toEntry)
+        ? (
+            await fetchAll((from, to) =>
+              supabase.from('entries').select('*').in('user_id', activeIds).order('id').range(from, to),
+            )
+          ).map(toEntry)
         : [];
       return { members, entries };
     },
@@ -366,16 +394,19 @@ export function useGroupBoard(ch: Challenge) {
         role: m.role as Player['role'],
         status: m.status as Player['status'],
         isMe: m.user_id === uid,
+        blocked: m.user_id !== uid && blocks.set.has(m.user_id),
         entries: own,
         stats: computeStats(own, ch),
       };
     });
-  }, [q.data, uid, outbox.data, ch]);
+  }, [q.data, uid, outbox.data, ch, blocks.set]);
 
-  const active = players.filter((p) => p.status === 'active');
+  const active = players.filter((p) => p.status === 'active' && !p.blocked);
   const ranked = [...active].sort((a, b) => b.stats.pct - a.stats.pct || b.stats.done - a.stats.done);
   return { ...q, players, active, ranked, pending: players.filter((p) => p.status === 'pending') };
 }
+
+export type EntryPatch = { weight: number; reps: number; distance: number };
 
 export type EntryInput = {
   exercise: string;
@@ -405,7 +436,7 @@ export function useAddEntries() {
 }
 
 /** Sıraya yazar, ekranı hemen günceller, sonra göndermeyi dener. */
-function useOutboxWrite() {
+export function useOutboxWrite() {
   const uid = useUserId();
   const qc = useQueryClient();
   const sync = useSyncOutbox();
@@ -425,10 +456,9 @@ export function useSyncOutbox() {
     flushOutbox(uid)
       .then(async ({ sent }) => {
         if (sent) {
-          await Promise.all([
-            qc.invalidateQueries({ queryKey: ['entries'] }),
-            qc.invalidateQueries({ queryKey: ['group'] }),
-          ]);
+          await Promise.all(
+            ['entries', 'group', 'meals', 'water', 'weights', 'profile'].map((k) => qc.invalidateQueries({ queryKey: [k] })),
+          );
         }
         qc.setQueryData(keys.outbox(uid), await readOutbox(uid));
       })

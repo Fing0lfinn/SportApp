@@ -8,6 +8,264 @@ export type Database = {
   };
   public: {
     Tables: {
+      blocks: {
+        Row: {
+          blocked_id: string;
+          blocker_id: string;
+          created_at: string;
+        };
+        Insert: {
+          blocked_id: string;
+          blocker_id?: string;
+          created_at?: string;
+        };
+        Update: {
+          blocked_id?: string;
+          blocker_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'blocks_blocked_id_fkey';
+            columns: ['blocked_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'blocks_blocker_id_fkey';
+            columns: ['blocker_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      body_weights: {
+        Row: {
+          created_at: string;
+          id: string;
+          measured_on: string;
+          user_id: string;
+          weight: number;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          measured_on: string;
+          user_id?: string;
+          weight: number;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          measured_on?: string;
+          user_id?: string;
+          weight?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'body_weights_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      health_settings: {
+        Row: {
+          activity: string | null;
+          birth_year: number | null;
+          favorites: Json;
+          goal: string | null;
+          height_cm: number | null;
+          kcal_target: number | null;
+          pace: number | null;
+          protein_target: number | null;
+          sex: string | null;
+          target_weight: number | null;
+          updated_at: string;
+          user_id: string;
+          water_target: number | null;
+        };
+        Insert: {
+          activity?: string | null;
+          birth_year?: number | null;
+          favorites?: Json;
+          goal?: string | null;
+          height_cm?: number | null;
+          kcal_target?: number | null;
+          pace?: number | null;
+          protein_target?: number | null;
+          sex?: string | null;
+          target_weight?: number | null;
+          updated_at?: string;
+          user_id?: string;
+          water_target?: number | null;
+        };
+        Update: {
+          activity?: string | null;
+          birth_year?: number | null;
+          favorites?: Json;
+          goal?: string | null;
+          height_cm?: number | null;
+          kcal_target?: number | null;
+          pace?: number | null;
+          protein_target?: number | null;
+          sex?: string | null;
+          target_weight?: number | null;
+          updated_at?: string;
+          user_id?: string;
+          water_target?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'health_settings_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      meals: {
+        Row: {
+          carbs: number;
+          created_at: string;
+          eaten_on: string;
+          fat: number;
+          id: string;
+          items: Json;
+          kcal: number;
+          name: string;
+          protein: number;
+          slot: string;
+          user_id: string;
+        };
+        Insert: {
+          carbs?: number;
+          created_at?: string;
+          eaten_on: string;
+          fat?: number;
+          id?: string;
+          items?: Json;
+          kcal?: number;
+          name?: string;
+          protein?: number;
+          slot: string;
+          user_id?: string;
+        };
+        Update: {
+          carbs?: number;
+          created_at?: string;
+          eaten_on?: string;
+          fat?: number;
+          id?: string;
+          items?: Json;
+          kcal?: number;
+          name?: string;
+          protein?: number;
+          slot?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'meals_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      reports: {
+        Row: {
+          created_at: string;
+          details: string;
+          entry_id: string | null;
+          id: string;
+          reason: string;
+          reported_id: string;
+          reporter_id: string | null;
+          status: string;
+        };
+        Insert: {
+          created_at?: string;
+          details?: string;
+          entry_id?: string | null;
+          id?: string;
+          reason: string;
+          reported_id: string;
+          reporter_id?: string | null;
+          status?: string;
+        };
+        Update: {
+          created_at?: string;
+          details?: string;
+          entry_id?: string | null;
+          id?: string;
+          reason?: string;
+          reported_id?: string;
+          reporter_id?: string | null;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'reports_entry_id_fkey';
+            columns: ['entry_id'];
+            isOneToOne: false;
+            referencedRelation: 'entries';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'reports_reported_id_fkey';
+            columns: ['reported_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'reports_reporter_id_fkey';
+            columns: ['reporter_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      water_logs: {
+        Row: {
+          created_at: string;
+          drunk_on: string;
+          id: string;
+          ml: number;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          drunk_on: string;
+          id?: string;
+          ml: number;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          drunk_on?: string;
+          id?: string;
+          ml?: number;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'water_logs_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       entries: {
         Row: {
           created_at: string;

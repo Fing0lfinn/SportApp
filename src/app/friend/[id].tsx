@@ -2,11 +2,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { Avatar, Bar, Card, IconBtn, Loading, Screen, styles, Txt } from '@/components/ui';
+import { Avatar, Bar, Btn, Card, IconBtn, Loading, Screen, styles, Txt } from '@/components/ui';
 import { C } from '@/constants/theme';
 import { getLang, useStrings } from '@/i18n';
 import { exStats, fmtShort, unitOf } from '@/lib/challenge';
 import { useGroupBoard, useMyStats } from '@/lib/data';
+import { useSetBlocked } from '@/lib/safety';
 
 export default function Friend() {
   const t = useStrings();
@@ -14,10 +15,64 @@ export default function Friend() {
   const mine = useMyStats();
   const ch = mine.challenge;
   const board = useGroupBoard(ch);
-  const friend = board.active.find((p) => p.id === id);
+  const friend = board.players.find((p) => p.id === id && !p.isMe);
   const me = board.active.find((p) => p.isMe);
+  const setBlocked = useSetBlocked();
 
-  if (!friend || mine.isLoading) return <Loading />;
+  if (board.isLoading || mine.isLoading) return <Loading />;
+  if (!friend) {
+    return (
+      <Screen bottom={40}>
+        <IconBtn name="back" label={t.common.back} onPress={() => router.back()} />
+        <Txt size={16} color={C.sub}>
+          {t.safety.notInGroup}
+        </Txt>
+      </Screen>
+    );
+  }
+
+  const safetyActions = (
+    <View style={{ gap: 10 }}>
+      <Btn
+        kind="secondary"
+        icon="flag"
+        height={50}
+        title={t.safety.report}
+        onPress={() => router.push({ pathname: '/report', params: { user: friend.id, name: friend.name } })}
+      />
+      <Btn
+        kind={friend.blocked ? 'secondary' : 'danger'}
+        icon="block"
+        height={50}
+        title={friend.blocked ? t.safety.unblock : t.safety.block}
+        loading={setBlocked.isPending}
+        onPress={() => setBlocked.mutate({ userId: friend.id, blocked: !friend.blocked })}
+      />
+      <Txt size={13} color={C.sub} style={{ textAlign: 'center' }}>
+        {friend.blocked ? t.safety.blockedHint : t.safety.blockHint}
+      </Txt>
+    </View>
+  );
+
+  if (friend.blocked) {
+    return (
+      <Screen bottom={40}>
+        <IconBtn name="back" label={t.common.back} onPress={() => router.back()} />
+        <View style={styles.row}>
+          <Avatar name={friend.name} color={C.muted} size={68} />
+          <Txt size={28} weight="extrabold" numberOfLines={1} style={{ flex: 1 }}>
+            {friend.name}
+          </Txt>
+        </View>
+        <Card>
+          <Txt size={16} color={C.sub}>
+            {t.safety.blockedTitle}
+          </Txt>
+        </Card>
+        {safetyActions}
+      </Screen>
+    );
+  }
   const rank = board.ranked.findIndex((p) => p.id === friend.id) + 1;
   const myColor = me?.color ?? C.accent;
 
@@ -89,6 +144,7 @@ export default function Friend() {
           );
         })}
       </Card>
+      {safetyActions}
     </Screen>
   );
 }

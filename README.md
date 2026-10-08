@@ -56,7 +56,15 @@ Proje bağlantısı `src/lib/supabase.ts` içinde. Publishable anahtar uygulamay
 - `groups.start_date`, `group_exercises`: her grubun başlangıç tarihi, hareket listesi ve hedefleri (yönetici düzenler)
 - `profiles.locale`: arkadaş bildirimlerinin dili
 - RPC: `create_group(p_name, p_start, p_exercises)`, `join_group`, `regenerate_invite_code`, `register_push_token`, `delete_account`
-- `entries_push_notify` tetikleyicisi: rekor kaydında gruptakilere, her birinin dilinde Expo push gönderir ("seni geçti", "hedefini tamamladı", "rekor kırdı"; her biri `profiles.notify` ile kapatılabilir)
+- `entries_push_notify` tetikleyicisi: rekor kaydında gruptakilere, her birinin dilinde Expo push gönderir ("seni geçti", "hedefini tamamladı", "rekor kırdı"; her biri `profiles.notify` ile kapatılabilir). Gönderen kişiyi engelleyenlere bildirim gitmez.
+- `blocks`, `reports`: kullanıcıyı engelleme ve şikayet (App Store Guideline 1.2). Şikayetler Supabase panelinde `reports` tablosundan incelenir (bkz. `docs/app-store.md` → Şikayetleri inceleme)
+- `health_settings`: kişisel hedef, günlük kalori/protein/su hedefi ve favori yiyecekler
+- `body_weights`: kilo geçmişi; en son ölçüm `profiles.body_weight`'e yazılır
+- `meals`, `water_logs`: öğünler ve içilen su
+
+Hedef, kilo, öğün ve su verilerini **sadece kişinin kendisi** görür (RLS).
+
+**Yeni sürüme geçerken:** `supabase/migrations/20261008120000_health_and_safety.sql` dosyasını Supabase panelinde **SQL Editor**'de çalıştır (ya da `npx supabase db push`). Bu çalışmadan yeni uygulama sürümündeki beslenme, su, hedef, kilo, şikayet ve engelleme özellikleri hata verir.
 
 **Apple ve Google ile giriş:**
 
@@ -97,7 +105,7 @@ Son görülen veriler telefonda saklanır; uygulama internetsiz de açılır. İ
 ```
 src/
   app/                 Expo Router ekranları
-    (tabs)/            Pano, Sıralama, Akış, Profil
+    (tabs)/            Pano, Sıralama, Beslenme (su kartı, kalori/makro, öğünler), Akış, Profil
     exercise/[key]     Hareket detayı: grafik, ara hedefler, geçmiş
     friend/[id]        Kafa kafaya karşılaştırma
     log, entry/[id]    Kayıt ekle / düzenle / sil, kutlama (alt panel)
@@ -109,7 +117,10 @@ src/
     guide/[key]        Hareket rehberi ve sayılma kuralı
     badge/[id]         Rozet detayı
     plates             Plaka hesaplayıcı
-    notifications      Bildirim ayarları
+    notifications      Bildirim ayarları (su hatırlatmaları dahil)
+    meal               Öğün ekle/düzenle: yiyecek ara, son yediklerim, favoriler, elle giriş
+    goals, weight      Hedefim (kilo verme/alma/kas/koruma, günlük hedefler) ve kilo takibi
+    report, blocked    Şikayet et ve engellenen kişiler
     wrapped            Yıl sonu özeti (hikaye gibi slaytlar)
     final              Final günü: geri sayım, sıralamanın açıklanması
     onboarding         Profil, grup ve 9 hareketlik başlangıç testi
@@ -125,6 +136,12 @@ src/
     notifications.ts   Yerel hatırlatmalar ve push kaydı
     outbox.ts          İnternetsiz kayıt: bekleyen işlemler ve senkronizasyon
     final.ts           Final saati ve geri sayım
+    foods.ts           Gömülü yiyecek listesi (5 dilde ad, 100 g değerleri, porsiyonlar) ve arama
+    nutrition.ts       Öğün ve su sorguları
+    health.ts          Hedef ayarları, favoriler, kilo takibi
+    targets.ts         Günlük kalori/protein/su hesabı (Mifflin-St Jeor)
+    water-reminders.ts Su hatırlatmaları (telefonda kurulur)
+    safety.ts          Engelleme ve şikayet
 supabase/migrations/   Veritabanı şeması
 ```
 
@@ -135,5 +152,6 @@ Tasarım prototipi: https://claude.ai/artifact/6AtgSF6XKEiWn7UFkbLXWM
 - **1. sürüm:** giriş, profil kurulumu ve başlangıç testi, gruplar ve davet kodu, kayıt ekle/düzenle/sil, pano, hareket detayı ve grafik, sıralama (genel, hareket, kilo oranı), akış ve beğeni, ara hedefler, XP, seviye, seri, canlı güncelleme
 - **2. sürüm:** rozetler, kutlama animasyonları, bildirimler, hareket rehberi, paylaşım kartları, grup yönetimi, aylık özet, plaka hesaplayıcı
 - **3. sürüm:** internetsiz kayıt, yıl sonu özeti, final günü
-- **4. sürüm (bu):** Apple ve Google ile giriş, grup bazlı hareketler ve hedefler, 5 dil, reklam ve Pro
+- **4. sürüm:** Apple ve Google ile giriş, grup bazlı hareketler ve hedefler, 5 dil, reklam ve Pro
+- **5. sürüm (bu):** beslenme sekmesi (gömülü yiyecek listesi, öğünler, favoriler), su takibi ve hatırlatmaları, hedef menüsü ve kilo takibi, şikayet et / engelle, internetsiz kayıt hatası ve 1000 satır sınırı düzeltmeleri. Ayrıntılar: `docs/plan.md`
 - **Sonra (EAS derlemesi gerekir):** Apple Sağlık / Health Connect, ana ekran widget'ı. Bu ikisi Expo Go'da çalışmayan yerel kod istiyor.

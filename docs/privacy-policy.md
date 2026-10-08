@@ -18,6 +18,11 @@ This policy explains what data the **1 Year Challenge** mobile app ("the App") c
 | Group memberships, the group's exercises and goals, likes | For groups, the feed and likes |
 | App language | To send friend notifications in your language |
 | Notification token (if you allow it) | To send friend notifications to your phone |
+| Goal settings (goal, sex, age, height, activity level, target weight, daily calorie/protein/water targets) — optional | To calculate your daily targets. **Visible only to you** |
+| Weight history — optional | To show your progress toward your target weight. **Visible only to you**; friends only see the bodyweight ratio based on your latest weight |
+| Meals (foods, amounts, calories and macros) and water intake — optional | To show your daily totals against your targets. **Visible only to you** |
+| Favorite foods | To add them again quickly. **Visible only to you** |
+| Reports you send (the person reported, reason, optional details) and people you block | To review reports within 24 hours and hide blocked people from you. The reported person does not see who reported them |
 
 The App does not access your location, contacts or photos.
 
@@ -31,7 +36,7 @@ Pro is bought through the Apple App Store or Google Play; your payment details n
 
 ## Who we share data with
 
-- Your name, color, bodyweight and entries are shared **only with members of the groups you belong to**.
+- Your name, color, bodyweight and entries are shared **only with members of the groups you belong to**. Goal settings, weight history, meals and water are never shared with anyone.
 - Data is stored on our infrastructure provider **Supabase**'s servers in the European Union (Ireland).
 - Notifications are delivered through the **Expo** push service, which only receives the notification text and device token.
 - Google AdMob (ads) and RevenueCat (purchases) process the data described above.
@@ -40,7 +45,7 @@ Pro is bought through the Apple App Store or Google Play; your payment details n
 ## Retention and deletion
 
 - Your data is kept while your account is open.
-- With **Profile → Delete my account** you can permanently delete your account and all your data (profile, entries, group memberships, likes, notification tokens) at any time. This cannot be undone.
+- With **Profile → Delete my account** you can permanently delete your account and all your data (profile, entries, group memberships, likes, notification tokens, goal settings, weight history, meals, water, blocks) at any time. This cannot be undone.
 - You can also request deletion by email at **[CONTACT EMAIL]**.
 
 ## Data stored on your phone
@@ -57,7 +62,7 @@ Depending on where you live (for example under the GDPR or KVKK), you have the r
 
 ## Health notice
 
-The App does not give medical advice. Heavy lifting and max attempts carry a risk of injury; train at your own responsibility and safely.
+The App does not give medical advice. Calorie, protein and water targets and food values are estimates. If you have a health condition, are pregnant or have a history of eating disorders, talk to a doctor before changing your diet. Heavy lifting and max attempts carry a risk of injury; train at your own responsibility and safely.
 
 ## Changes
 

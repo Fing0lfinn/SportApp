@@ -313,19 +313,51 @@ Schweres Heben birgt Verletzungsrisiken. Wärm dich auf, achte auf saubere Techn
 
 ## App Review Information → Notes (English)
 
+Aynı metni **Reply to App Review** yanıtına da yapıştır (Apple ikisini de istiyor). `[DEMO_EMAIL]` / `[DEMO_PASSWORD]` yerine bir grupta olan ve örnek kayıtları bulunan demo hesabın bilgilerini yaz.
+
 ```
-1 Year Challenge is a strength-goal tracker for groups of friends.
+Hello, thank you for reviewing 1 Year Challenge. Please find the requested information below. A screen recording from a physical iPhone is attached.
 
-Please sign in with the demo account below (email + password, under "or with email"). The account is already in a group with sample entries.
+1. Screen recording
+Attached. It shows launch, account registration, onboarding, logging a lift, rankings, the feed, nutrition and water tracking, reporting and blocking a user, group management (approving and removing members), sign out / sign in, and account deletion (Profile → Delete my account, tap twice to confirm).
 
-- Home: goals and progress. "Log a lift" adds an entry.
-- Rankings / Feed: the group's ranking and recent PRs.
-- Profile → Groups: invite code to share with friends.
-- Profile → Goals and exercises: the group admin can change the start date, exercises and goals.
-- Profile → Delete my account: deletes the account and all data (tap twice to confirm).
+2. Purpose and target audience
+1 Year Challenge is a strength-goal tracker for small groups of friends. Each group picks exercises and goals (for example, squat 120 kg) and has one year to reach them. Users log their lifts, see progress toward each goal and compare with friends on a leaderboard. Users can also set a personal goal (lose weight, gain weight, build muscle or maintain), get an estimated daily calorie, protein and water target, log meals from a built-in food list, track water and their bodyweight. It is for people who train in a gym and want accountability and motivation from their friends over a long period.
 
-Sign in with Apple and Google are also available on the first screen.
+3. Setup and access
+Demo account (email + password, under "or with email" on the first screen):
+Email: [DEMO_EMAIL]
+Password: [DEMO_PASSWORD]
+The demo account is already in a group with sample entries, so every feature is available right away. A new account can also be created with email, Sign in with Apple or Google. Groups are private and can only be joined with a 6-character invite code.
+- Home / Rankings / Feed: goals, the group's ranking and recent PRs. "Log a lift" adds an entry.
+- Nutrition tab: water card (quick add, daily goal), daily calories and macros, meals (search the built-in food list, recent, favorites or manual entry).
+- Profile → My goal / Weight tracking: personal targets and weight history (private to the user).
+- Profile → Notifications: water reminders (local notifications, 09:00–21:00).
+- Friend profile (tap a person in Rankings) → Report / Block. Feed post → "…" → Report. Profile → Blocked people → Unblock.
+- Profile → Delete my account: deletes the account and all data.
+
+4. External services
+- Supabase: authentication, database and realtime updates
+- Sign in with Apple and Google Sign-In (through Supabase Auth)
+- Expo Push Notification Service (Apple Push Notification service) for friend notifications
+Food values are a built-in list based on USDA FoodData Central (public domain) and run on the device. The app does not use any AI services, advertising or analytics SDKs, and has no in-app purchases in this version.
+
+5. Regional differences
+The app works the same in all regions. The interface is available in English, Turkish, Japanese, Spanish and German.
+
+6. Regulated industry / third-party material
+Not applicable. The app does not operate in a regulated industry and contains no third-party protected material. Calorie and nutrition targets are estimates shown with a clear "not medical advice" notice. The exercise guides are our own content.
+
+User-generated content
+Users only see content (display names, group names, workout entries and likes) from members of their own private, invite-only groups. Nutrition, water and weight data are private to each user. Any user can report a person or a post (reason + optional details) and block a person; blocked people's entries, ranking and posts are hidden and their notifications stop. Reports are reviewed by the developer within 24 hours; offending content is removed and the user is removed from the service. Group admins can also require approval for new members and remove any member. Any user can leave a group or permanently delete their account and all data.
 ```
+
+## Şikayetleri inceleme (her gün)
+
+Apple, şikayetlerin 24 saat içinde ele alınmasını istiyor. Supabase panelinde **Table Editor → reports** tablosunda `status = open` satırlara bak:
+
+- Şikayet yerindeyse içeriği sil (Table Editor → `entries`, ilgili `entry_id`) ya da kişiyi tamamen çıkar: **Authentication → Users** → kişiyi bul → **Delete user** (tüm verisi silinir).
+- İşin bitince satırın `status` değerini `resolved` yap.
 
 ## App Privacy (Data Collection)
 
@@ -335,8 +367,9 @@ Sign in with Apple and Google are also available on the first screen.
 | --- | --- | --- | --- |
 | Contact Info → Email Address | App Functionality | Yes | No |
 | Contact Info → Name | App Functionality | Yes | No |
-| Health & Fitness → Health (bodyweight) | App Functionality | Yes | No |
+| Health & Fitness → Health (bodyweight and weight history, height, age, sex, goal, meals, calories, water) | App Functionality | Yes | No |
 | Health & Fitness → Fitness (workout entries) | App Functionality | Yes | No |
+| User Content → Other User Content (report details) | App Functionality | Yes | No |
 | Identifiers → User ID | App Functionality | Yes | No |
 
 Hiçbiri izleme (tracking) için kullanılmıyor. Reklam açıldığında bu form güncellenecek.

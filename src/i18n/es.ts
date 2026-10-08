@@ -1,3 +1,4 @@
+import { esHealth } from './health/es';
 import type { Dict } from './tr';
 
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -480,7 +481,7 @@ export const es: Dict = {
     exercisesNote: 'Todos compiten con la misma lista. Quitar un ejercicio no borra registros, solo lo saca de la clasificación.',
     create: 'Crear grupo',
   },
-  tabs: { index: 'Inicio', board: 'Clasificación', feed: 'Actividad', profile: 'Perfil' },
+  tabs: { index: 'Inicio', board: 'Clasificación', nutrition: 'Nutrición', feed: 'Actividad', profile: 'Perfil' },
   ui: { dec: (title) => `Reducir ${title}`, inc: (title) => `Aumentar ${title}` },
   offline: {
     offline: 'Sin conexión · tus registros se guardan en el móvil',
@@ -536,4 +537,5 @@ export const es: Dict = {
     soon: 'La compra de Pro llegará muy pronto.',
     removeAds: 'Quitar anuncios · Hazte Pro',
   },
+  ...esHealth,
 };

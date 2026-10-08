@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Icon } from '@/components/icon';
-import { Avatar, Btn, Empty, Loading, Pill, Screen, styles, Title, Txt } from '@/components/ui';
+import { Avatar, Btn, Empty, IconBtn, Loading, Pill, Screen, styles, Title, Txt } from '@/components/ui';
 import { C } from '@/constants/theme';
 import { AdBanner } from '@/components/ad-banner';
 import { strings, useStrings } from '@/i18n';
@@ -73,6 +73,18 @@ export default function Feed() {
                 </View>
                 {badge ? (
                   <Pill bg={badge.bg}>{badge.t}</Pill>
+                ) : null}
+                {!p.isMe ? (
+                  <IconBtn
+                    name="more"
+                    label={t.safety.reportEntryTitle}
+                    size={34}
+                    bg={C.surface2}
+                    color={C.sub}
+                    onPress={() =>
+                      router.push({ pathname: '/report', params: { user: p.id, entry: e.id, name: p.name } })
+                    }
+                  />
                 ) : null}
               </View>
               <View>

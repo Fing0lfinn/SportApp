@@ -26,6 +26,7 @@ import { AuthProvider, useAuth, useUserId } from '@/lib/auth';
 import { useChallenge, useMyEntries, useProfile, useSyncOutbox, useUpdateProfile } from '@/lib/data';
 import { configureNotifications, registerForPush, syncLocalNotifications } from '@/lib/notifications';
 import { initPro, setProUser, usePro } from '@/lib/pro';
+import { useWaterReminderSync } from '@/lib/water-reminders';
 import { supabase } from '@/lib/supabase';
 
 SplashScreen.preventAutoHideAsync();
@@ -101,6 +102,7 @@ function RootStack({ fontsLoaded }: { fontsLoaded: boolean }) {
   useLiveUpdates(signedIn);
   useOutboxSync(signedIn);
   useNotificationSetup(signedIn && onboarded);
+  useWaterReminderSync(signedIn && onboarded);
   useLocaleSync(signedIn);
   useMonetization(signedIn, signedIn && onboarded);
 
@@ -136,6 +138,11 @@ function RootStack({ fontsLoaded }: { fontsLoaded: boolean }) {
         <Stack.Screen name="group-admin" />
         <Stack.Screen name="challenge" />
         <Stack.Screen name="pro" options={sheet} />
+        <Stack.Screen name="report" options={sheet} />
+        <Stack.Screen name="blocked" />
+        <Stack.Screen name="goals" />
+        <Stack.Screen name="weight" />
+        <Stack.Screen name="meal" options={sheet} />
         <Stack.Screen name="wrapped" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
         <Stack.Screen name="final" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack.Protected>
@@ -194,8 +201,9 @@ function useNotificationSetup(enabled: boolean) {
   useEffect(() => {
     if (!enabled || Platform.OS === 'web') return;
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as { exercise?: string } | undefined;
+      const data = response.notification.request.content.data as { exercise?: string; screen?: string } | undefined;
       if (data?.exercise) router.push({ pathname: '/exercise/[key]', params: { key: data.exercise } });
+      else if (data?.screen === 'nutrition') router.push('/nutrition');
       else router.push('/');
     });
     return () => sub.remove();

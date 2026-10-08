@@ -1,3 +1,5 @@
+import { trHealth } from './health/tr';
+
 // Türkçe metinler. Diğer diller bu dosyanın yapısını birebir izler (tip kontrolü eksik anahtarı yakalar).
 
 const MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
@@ -479,7 +481,7 @@ export const tr = {
     exercisesNote: 'Herkes aynı listeyle yarışır. Bir hareketi çıkarmak kayıtları silmez, sadece sıralamadan düşer.',
     create: 'Grubu kur',
   },
-  tabs: { index: 'Pano', board: 'Sıralama', feed: 'Akış', profile: 'Profil' },
+  tabs: { index: 'Pano', board: 'Sıralama', nutrition: 'Beslenme', feed: 'Akış', profile: 'Profil' },
   ui: { dec: (title: string) => `${title} azalt`, inc: (title: string) => `${title} artır` },
   offline: {
     offline: 'Çevrimdışısın · kayıtların telefonda saklanır',
@@ -535,6 +537,7 @@ export const tr = {
     soon: 'Pro satın alma çok yakında açılacak.',
     removeAds: "Reklamları kaldır · Pro'ya geç",
   },
+  ...trHealth,
 };
 
 export type Dict = typeof tr;

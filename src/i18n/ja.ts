@@ -1,3 +1,4 @@
+import { jaHealth } from './health/ja';
 import type { Dict } from './tr';
 
 export const ja: Dict = {
@@ -474,7 +475,7 @@ export const ja: Dict = {
     exercisesNote: '全員が同じリストで競います。種目を削除しても記録は消えず、ランキングから外れるだけです。',
     create: 'グループを作成',
   },
-  tabs: { index: 'ホーム', board: 'ランキング', feed: 'フィード', profile: 'プロフィール' },
+  tabs: { index: 'ホーム', board: 'ランキング', nutrition: '食事', feed: 'フィード', profile: 'プロフィール' },
   ui: { dec: (title) => `${title}を減らす`, inc: (title) => `${title}を増やす` },
   offline: {
     offline: 'オフラインです · 記録はスマホに保存されます',
@@ -530,4 +531,5 @@ export const ja: Dict = {
     soon: 'Proの購入はまもなく開始します。',
     removeAds: '広告を消す · Proにする',
   },
+  ...jaHealth,
 };

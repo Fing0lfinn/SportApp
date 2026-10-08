@@ -162,6 +162,8 @@ export default function Profile() {
             onPress={() => router.push('/pro')}
           />
         ) : null}
+        <MenuRow icon="target" title={t.goals.title} sub={t.goals.menuSub} onPress={() => router.push('/goals')} />
+        <MenuRow icon="scale" title={t.weight.title} sub={t.weight.menuSub} onPress={() => router.push('/weight')} />
         <MenuRow icon="bolt" title={t.profile.wrapped} sub={t.profile.wrappedSub} onPress={() => router.push('/wrapped')} />
         <MenuRow
           icon="board"
@@ -186,6 +188,7 @@ export default function Profile() {
         ) : null}
         <MenuRow icon="user" title={t.profile.edit} sub={t.profile.editSub} onPress={() => setEditing(!editing)} />
         <MenuRow icon="home" title={t.board.groups} sub={t.profile.groupsSub} onPress={() => router.push('/groups')} />
+        <MenuRow icon="block" title={t.safety.blockedList} sub={t.safety.blockedMenuSub} onPress={() => router.push('/blocked')} />
         <Btn
           kind="danger"
           title={t.profile.signOut}
